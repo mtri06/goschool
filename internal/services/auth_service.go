@@ -20,6 +20,7 @@ type AuthSvcUserRepo interface {
 
 type AuthSvcTokenRepo interface {
 	CreateToken(token *model.Token) error
+	RevokeByBody(body string) error
 }
 
 type AuthService struct {
@@ -77,6 +78,14 @@ func (s *AuthService) Login(username, password string) (*model.AuthTokens, error
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
+}
+
+// Logout revokes the given refresh token in the DB
+func (s *AuthService) Logout(refreshToken string) error {
+	if err := s.tokenRepo.RevokeByBody(refreshToken); err != nil {
+		return fmt.Errorf("failed to revoke refresh token: %w", err)
+	}
+	return nil
 }
 
 func generateAccessToken(user *model.User) (string, error) {

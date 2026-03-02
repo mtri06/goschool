@@ -12,6 +12,7 @@ import (
 
 type AuthService interface {
 	Login(username, password string) (*model.AuthTokens, error)
+	Logout(refreshToken string) error
 }
 
 type AuthHandler struct {
@@ -59,4 +60,39 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(constant.CookieRefreshToken)
+	if err != nil || cookie.Value == "" {
+		httpx.RenderError(w, r, h.errMap, httpx.ErrUnauthorized)
+		return
+	}
+
+	if err := h.authSvc.Logout(cookie.Value); err != nil {
+		httpx.RenderError(w, r, h.errMap, err)
+		return
+	}
+
+	// Clear both cookies
+	http.SetCookie(w, &http.Cookie{
+		Name:     constant.CookieAccessToken,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     constant.CookieRefreshToken,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	w.WriteHeader(http.StatusNoContent)
 }

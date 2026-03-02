@@ -15,6 +15,15 @@ func NewTokenRepository(db *sql.DB) *TokenRepository {
 	return &TokenRepository{db: db}
 }
 
+// RevokeByBody sets is_revoked = true for the token matching the given body
+func (r *TokenRepository) RevokeByBody(body string) error {
+	_, err := r.db.Exec(`UPDATE tokens SET is_revoked = true WHERE body = $1`, body)
+	if err != nil {
+		return fmt.Errorf("failed to revoke token: %w", err)
+	}
+	return nil
+}
+
 // CreateToken inserts a new token and returns the generated ID
 func (r *TokenRepository) CreateToken(token *model.Token) error {
 	err := r.db.QueryRow(`
