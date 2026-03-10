@@ -35,6 +35,22 @@ func (r *UserRepository) UsernameExists(username string) (bool, error) {
 	return exists, nil
 }
 
+// GetByID retrieves a user by ID
+func (r *UserRepository) GetByID(id int64) (*model.User, error) {
+	var user model.User
+	err := r.db.QueryRow(`
+		SELECT id, username, password, email, role, created_at, updated_at
+		FROM users WHERE id = $1
+	`, id).Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get user by id: %w", err)
+	}
+	return &user, nil
+}
+
 // GetByUsername retrieves a user by username
 func (r *UserRepository) GetByUsername(username string) (*model.User, error) {
 	var user model.User

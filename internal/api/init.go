@@ -68,4 +68,5 @@ var serviceErrMapping = map[error]httpx.APIError{
 	services.ErrValidationFailed:   httpx.ErrBadRequest,
 	services.ErrNotFound:           httpx.ErrNotFound,
 	services.ErrInvalidCredentials: httpx.ErrUnauthorized,
+	services.ErrUnauthorized:       httpx.ErrUnauthorized,
 }

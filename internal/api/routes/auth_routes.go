@@ -11,6 +11,7 @@ func MountAuthRoutes(router chi.Router, h *handler.AuthHandler) {
 
 	r.Post("/login", h.Login)
 	r.Post("/logout", h.Logout)
+	r.Post("/refresh", h.Refresh)
 
 	router.Mount("/auth", r)
 }

@@ -13,6 +13,7 @@ import (
 type AuthService interface {
 	Login(username, password string) (*model.AuthTokens, error)
 	Logout(refreshToken string) error
+	RefreshTokens(accessToken, refreshToken string) (*model.AuthTokens, error)
 }
 
 type AuthHandler struct {
@@ -95,4 +96,45 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	})
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	accessCookie, err := r.Cookie(constant.CookieAccessToken)
+	if err != nil || accessCookie.Value == "" {
+		httpx.RenderError(w, r, h.errMap, httpx.ErrUnauthorized)
+		return
+	}
+
+	refreshCookie, err := r.Cookie(constant.CookieRefreshToken)
+	if err != nil || refreshCookie.Value == "" {
+		httpx.RenderError(w, r, h.errMap, httpx.ErrUnauthorized)
+		return
+	}
+
+	tokens, err := h.authSvc.RefreshTokens(accessCookie.Value, refreshCookie.Value)
+	if err != nil {
+		httpx.RenderError(w, r, h.errMap, err)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     constant.CookieAccessToken,
+		Value:    tokens.AccessToken,
+		Path:     "/",
+		MaxAge:   env.Env.JWTAccessExpiresMins * 60,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     constant.CookieRefreshToken,
+		Value:    tokens.RefreshToken,
+		Path:     "/",
+		MaxAge:   env.Env.JWTRefreshExpiresDays * 24 * int(time.Hour.Seconds()),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	w.WriteHeader(http.StatusOK)
 }
