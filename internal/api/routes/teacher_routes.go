@@ -12,6 +12,7 @@ func MountTeacherRoutes(router chi.Router, h *handler.TeacherHandler) {
 	r := chi.NewRouter()
 
 	r.With(mw.Auth, mw.RequireRole(constant.RoleAdmin)).Post("/", h.CreateTeacher)
+	r.With(mw.Auth).Get("/", h.GetTeachers)
 
 	router.Mount("/teachers", r)
 }

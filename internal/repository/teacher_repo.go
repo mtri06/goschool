@@ -3,6 +3,8 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"strings"
+	"sync"
 
 	"goschool/pkg/model"
 )
@@ -64,4 +66,88 @@ func (r *TeacherRepository) Create(user *model.User, teacher *model.Teacher) err
 	}
 
 	return nil
+}
+
+// List returns a paginated list of teachers and the total count, with optional filters
+func (r *TeacherRepository) List(page, pageSize int, name, email string) ([]model.Teacher, int, error) {
+	offset := (page - 1) * pageSize
+
+	// Build JOIN and WHERE clause dynamically
+	var conditions []string
+	var args []any
+	join := ""
+	if name != "" {
+		args = append(args, "%"+name+"%")
+		conditions = append(conditions, fmt.Sprintf("t.name ILIKE $%d", len(args)))
+	}
+	if email != "" {
+		join = "JOIN users u ON u.id = t.user_id"
+		args = append(args, email+"%")
+		conditions = append(conditions, fmt.Sprintf("u.email LIKE $%d", len(args)))
+	}
+	where := ""
+	if len(conditions) > 0 {
+		where = "WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	var (
+		total    int
+		teachers []model.Teacher
+		countErr error
+		listErr  error
+		wg       sync.WaitGroup
+	)
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		q := fmt.Sprintf(`SELECT COUNT(*) FROM teachers t %s %s`, join, where)
+		if err := r.db.QueryRow(q, args...).Scan(&total); err != nil {
+			countErr = fmt.Errorf("failed to count teachers: %w", err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		// Append LIMIT/OFFSET args after filter args
+		listArgs := append(args, pageSize, offset)
+		q := fmt.Sprintf(`
+			SELECT t.user_id, t.name, t.subject_id, t.date_of_birth, t.gender, t.hire_date, t.working_status, t.created_at, t.updated_at
+			FROM teachers t
+			%s
+			%s
+			ORDER BY t.user_id
+			LIMIT $%d OFFSET $%d
+		`, join, where, len(listArgs)-1, len(listArgs))
+		rows, err := r.db.Query(q, listArgs...)
+		if err != nil {
+			listErr = fmt.Errorf("failed to list teachers: %w", err)
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var t model.Teacher
+			if err := rows.Scan(&t.UserID, &t.Name, &t.SubjectID, &t.DateOfBirth, &t.Gender, &t.HireDate, &t.WorkingStatus, &t.CreatedAt, &t.UpdatedAt); err != nil {
+				listErr = fmt.Errorf("failed to scan teacher: %w", err)
+				return
+			}
+			teachers = append(teachers, t)
+		}
+		if err := rows.Err(); err != nil {
+			listErr = fmt.Errorf("rows error: %w", err)
+		}
+	}()
+
+	wg.Wait()
+
+	if countErr != nil {
+		return nil, 0, countErr
+	}
+	if listErr != nil {
+		return nil, 0, listErr
+	}
+
+	return teachers, total, nil
 }

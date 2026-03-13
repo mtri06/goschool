@@ -25,6 +25,7 @@ type TeacherService struct {
 
 type TeacherSvcTeacherRepo interface {
 	Create(user *model.User, teacher *model.Teacher) error
+	List(page, pageSize int, name, email string) ([]model.Teacher, int, error)
 }
 
 type TeacherSvcSubjectRepo interface {
@@ -42,6 +43,16 @@ func NewTeacherService(teacherRepo TeacherSvcTeacherRepo, userRepo TeacherSvcUse
 		userRepo:    userRepo,
 		subjectRepo: subjectRepo,
 	}
+}
+
+func (s *TeacherService) ListTeachers(page, pageSize int, name, email string) ([]model.Teacher, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+	return s.teacherRepo.List(page, pageSize, name, email)
 }
 
 func (s *TeacherService) CreateTeacher(req model.NewTeacher) error {
