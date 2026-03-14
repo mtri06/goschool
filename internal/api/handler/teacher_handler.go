@@ -1,17 +1,21 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"goschool/pkg/httpx"
 	"goschool/pkg/model"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 )
 
 type TeacherService interface {
 	CreateTeacher(req model.NewTeacher) error
 	ListTeachers(page, pageSize int, name, email string) ([]model.Teacher, int, error)
+	DeleteTeacher(id int64) error
 }
 
 type TeacherHandler struct {
@@ -36,6 +40,22 @@ func (h *TeacherHandler) CreateTeacher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+}
+
+func (h *TeacherHandler) DeleteTeacher(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		httpx.RenderError(w, r, h.errMap, fmt.Errorf("%w: user id param is required", httpx.ErrInvalidQuery))
+		return
+	}
+
+	if err := h.teacherSvc.DeleteTeacher(id); err != nil {
+		httpx.RenderError(w, r, h.errMap, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *TeacherHandler) GetTeachers(w http.ResponseWriter, r *http.Request) {

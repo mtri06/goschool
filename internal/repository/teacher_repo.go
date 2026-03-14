@@ -7,6 +7,8 @@ import (
 	"sync"
 
 	"goschool/pkg/model"
+
+	"github.com/rs/zerolog/log"
 )
 
 type TeacherRepository struct {
@@ -150,4 +152,40 @@ func (r *TeacherRepository) List(page, pageSize int, name, email string) ([]mode
 	}
 
 	return teachers, total, nil
+}
+
+// Delete removes the teacher and their associated user in a single transaction.
+func (r *TeacherRepository) Delete(userID int64) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	var res sql.Result
+	if res, err = tx.Exec(`DELETE FROM teachers WHERE user_id = $1`, userID); err != nil {
+		return fmt.Errorf("failed to delete teacher: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if n == 0 {
+		log.Debug().Msg("no rows affected")
+		return nil
+	}
+
+	if _, err = tx.Exec(`DELETE FROM users WHERE id = $1`, userID); err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }

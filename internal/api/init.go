@@ -65,6 +65,7 @@ func InitServer() http.Handler {
 
 var serviceErrMapping = map[error]httpx.APIError{
 	httpx.ErrInvalidBody:           httpx.ErrBadRequest,
+	httpx.ErrInvalidQuery:          httpx.ErrBadRequest,
 	services.ErrValidationFailed:   httpx.ErrBadRequest,
 	services.ErrNotFound:           httpx.ErrNotFound,
 	services.ErrInvalidCredentials: httpx.ErrUnauthorized,

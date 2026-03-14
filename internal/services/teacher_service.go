@@ -26,6 +26,7 @@ type TeacherService struct {
 type TeacherSvcTeacherRepo interface {
 	Create(user *model.User, teacher *model.Teacher) error
 	List(page, pageSize int, name, email string) ([]model.Teacher, int, error)
+	Delete(userID int64) error
 }
 
 type TeacherSvcSubjectRepo interface {
@@ -43,6 +44,10 @@ func NewTeacherService(teacherRepo TeacherSvcTeacherRepo, userRepo TeacherSvcUse
 		userRepo:    userRepo,
 		subjectRepo: subjectRepo,
 	}
+}
+
+func (s *TeacherService) DeleteTeacher(userID int64) error {
+	return s.teacherRepo.Delete(userID)
 }
 
 func (s *TeacherService) ListTeachers(page, pageSize int, name, email string) ([]model.Teacher, int, error) {
