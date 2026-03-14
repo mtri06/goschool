@@ -40,9 +40,9 @@ CREATE TABLE subjects (
 	updated_at 	TIMESTAMPTZ 	NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE teachers ADD CONSTRAINT fk_teachers_user_id FOREIGN KEY (user_id) REFERENCES users(id);
+ALTER TABLE teachers ADD CONSTRAINT fk_teachers_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 ALTER TABLE teachers ADD CONSTRAINT fk_teachers_subject_id FOREIGN KEY (subject_id) REFERENCES subjects(id);
-ALTER TABLE students ADD CONSTRAINT fk_students_user_id FOREIGN KEY (user_id) REFERENCES users(id);
+ALTER TABLE students ADD CONSTRAINT fk_students_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 
 -- +goose Down
 ALTER TABLE students DROP CONSTRAINT fk_students_user_id;
