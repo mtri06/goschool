@@ -104,23 +104,27 @@ func (s *AuthService) RefreshTokens(accessToken, refreshToken string) (*model.Au
 		return []byte(env.Env.JWTSecret), nil
 	})
 	if err != nil && !errors.Is(err, jwt.ErrTokenExpired) {
+		log.Warn().Err(err).Msg("Failed to parse access token")
 		return nil, ErrUnauthorized
 	}
 
 	aClaims, ok := aToken.Claims.(jwt.MapClaims)
 	if !ok {
+		log.Warn().Msg("Failed to parse access token claims")
 		return nil, ErrUnauthorized
 	}
 
 	// Access token must be expired
 	expTime, _ := aClaims.GetExpirationTime()
 	if expTime != nil && expTime.Unix() > time.Now().Unix() {
+		log.Warn().Msg("Access token is not expired")
 		return nil, ErrUnauthorized
 	}
 
 	// Get user ID from access token claims
 	subFloat, ok := aClaims["sub"].(float64)
 	if !ok {
+		log.Warn().Msg("Access token 'sub' claim is missing or invalid")
 		return nil, ErrUnauthorized
 	}
 	userID := int64(subFloat)
@@ -128,14 +132,17 @@ func (s *AuthService) RefreshTokens(accessToken, refreshToken string) (*model.Au
 	// Look up refresh token in DB
 	rToken, err := s.tokenRepo.GetByBody(refreshToken)
 	if err != nil {
+		log.Warn().Err(err).Msg("Failed to get refresh token")
 		return nil, fmt.Errorf("failed to get refresh token: %w", err)
 	}
 	if rToken == nil {
+		log.Warn().Msg("Refresh token not found")
 		return nil, ErrUnauthorized
 	}
 
 	// Refresh token must not be expired
 	if rToken.ExpiresAt.Before(time.Now()) {
+		log.Warn().Msg("Refresh token is expired")
 		return nil, ErrUnauthorized
 	}
 
@@ -169,6 +176,7 @@ func (s *AuthService) RefreshTokens(accessToken, refreshToken string) (*model.Au
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 	if user == nil {
+		log.Warn().Int64("user_id", userID).Msg("User not found")
 		return nil, ErrNotFound
 	}
 
