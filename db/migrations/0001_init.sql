@@ -3,7 +3,7 @@ CREATE TABLE users (
 	id SERIAL 	PRIMARY KEY,
 	username 		VARCHAR(100) 	NOT NULL UNIQUE,
 	password 		VARCHAR(255) 	NOT NULL,
-	email 			VARCHAR(100) 	UNIQUE,
+	email 			VARCHAR(100),
 	role 				VARCHAR(100) 	NOT NULL CHECK (role IN ('student', 'teacher', 'admin')),
 	created_at 	TIMESTAMPTZ 	NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	updated_at 	TIMESTAMPTZ 	NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -44,7 +44,10 @@ ALTER TABLE teachers ADD CONSTRAINT fk_teachers_user_id FOREIGN KEY (user_id) RE
 ALTER TABLE teachers ADD CONSTRAINT fk_teachers_subject_id FOREIGN KEY (subject_id) REFERENCES subjects(id);
 ALTER TABLE students ADD CONSTRAINT fk_students_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 
+CREATE UNIQUE INDEX idx_users_email ON users (email) WHERE email IS NOT NULL;
+
 -- +goose Down
+DROP INDEX IF EXISTS idx_users_email;
 ALTER TABLE students DROP CONSTRAINT fk_students_user_id;
 ALTER TABLE teachers DROP CONSTRAINT fk_teachers_subject_id;
 ALTER TABLE teachers DROP CONSTRAINT fk_teachers_user_id;
