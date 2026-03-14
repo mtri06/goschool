@@ -32,8 +32,8 @@ func Init() {
 		DBURL:                 envOrPanic("DATABASE_URL"),
 		AllowedOrigins:        strings.Split(envOrPanic("CORS_ALLOWED_ORIGINS"), ","),
 		JWTSecret:             envOrPanic("JWT_SECRET"),
-		JWTAccessExpiresMins:  envIntOrDefault("JWT_ACCESS_EXP_MINS", 15),
-		JWTRefreshExpiresDays: envIntOrDefault("JWT_REFRESH_EXP_DAYS", 7),
+		JWTAccessExpiresMins:  envIntOrDefault("JWT_ACCESS_EXPIRES_MINS", 15),
+		JWTRefreshExpiresDays: envIntOrDefault("JWT_REFRESH_EXPIRES_DAYS", 7),
 		AdminUsername:         envOrPanic("ADMIN_USERNAME"),
 		AdminPassword:         envOrPanic("ADMIN_PASSWORD"),
 	}
