@@ -74,7 +74,7 @@ func RenderError(w http.ResponseWriter, r *http.Request, errMap APIErrorMap, err
 var (
 	ErrBadRequest = APIError{
 		Title:  "bad_request",
-		Msg:    "The request could not be understood or was missing required parameters",
+		Msg:    "Bad request",
 		Status: http.StatusBadRequest,
 	}
 

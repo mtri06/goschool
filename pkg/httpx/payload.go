@@ -17,15 +17,15 @@ var (
 
 var validate = validator.New(validator.WithRequiredStructEnabled())
 
-func DecodeBody[T any](r *http.Request) (T, error) {
+func DecodeBody[T any](r *http.Request) (*T, error) {
 	var payload T
 	errDecode := render.DecodeJSON(r.Body, &payload)
 	errValidate := validate.Struct(payload)
 	err := errors.Join(errDecode, errValidate)
 	if err != nil {
-		return payload, errors.Join(ErrInvalidBody, err)
+		return &payload, errors.Join(ErrInvalidBody, err)
 	}
-	return payload, nil
+	return &payload, nil
 }
 
 // GetQueryStr returns the value of the query parameter with the given name.

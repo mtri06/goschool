@@ -2,132 +2,96 @@ package services
 
 import (
 	"fmt"
-	"slices"
-
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
+	"slices"
 )
 
-var (
-	teacherGenders         = []string{constant.GenderMale, constant.GenderFemale, constant.GenderOther}
-	teacherWorkingStatuses = []string{
-		constant.WorkingStatusActive,
-		constant.WorkingStatusInactive,
-		constant.WorkingStatusOnLeave,
-	}
-)
-
-type TeacherService struct {
-	teacherRepo TeacherSvcTeacherRepo
-	userRepo    TeacherSvcUserRepo
-	subjectRepo TeacherSvcSubjectRepo
-}
-
-type TeacherSvcTeacherRepo interface {
-	Create(user *model.User, teacher *model.Teacher) error
-	List(page, pageSize int, name, email string) ([]model.Teacher, int, error)
-	Delete(userID int64) error
+type TeacherSvcUserRepo interface {
+	CreateTeacher(user *model.User, teacher *model.UserTeacher) error
+	DeleteTeacher(teacherID int64) error
+	ListTeachers(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error)
 }
 
 type TeacherSvcSubjectRepo interface {
 	Exists(id int64) (bool, error)
 }
 
-type TeacherSvcUserRepo interface {
-	EmailExists(email string) (bool, error)
-	UsernameExists(username string) (bool, error)
+type TeacherSvcUserSvc interface {
+	validateUser(user *model.User) error
 }
 
-func NewTeacherService(teacherRepo TeacherSvcTeacherRepo, userRepo TeacherSvcUserRepo, subjectRepo TeacherSvcSubjectRepo) *TeacherService {
+type TeacherService struct {
+	userRepo    TeacherSvcUserRepo
+	subjectRepo TeacherSvcSubjectRepo
+	userSvc     TeacherSvcUserSvc
+}
+
+func NewTeacherService(userRepo TeacherSvcUserRepo, subjectRepo TeacherSvcSubjectRepo, userSvc TeacherSvcUserSvc) *TeacherService {
 	return &TeacherService{
-		teacherRepo: teacherRepo,
 		userRepo:    userRepo,
 		subjectRepo: subjectRepo,
+		userSvc:     userSvc,
 	}
 }
 
-func (s *TeacherService) DeleteTeacher(userID int64) error {
-	return s.teacherRepo.Delete(userID)
+func (s *TeacherService) CreateTeacher(newTeacher *model.NewTeacher) error {
+	user := &model.User{
+		Username:    newTeacher.Username,
+		Password:    newTeacher.Password,
+		Email:       newTeacher.Email,
+		Name:        newTeacher.Name,
+		Role:        constant.RoleTeacher,
+		DateOfBirth: newTeacher.DateOfBirth,
+		Gender:      newTeacher.Gender,
+	}
+	userTeacher := &model.UserTeacher{
+		SubjectID:     newTeacher.SubjectID,
+		HireDate:      newTeacher.HireDate,
+		WorkingStatus: newTeacher.WorkingStatus,
+	}
+
+	if err := s.userSvc.validateUser(user); err != nil {
+		return err
+	}
+
+	hashedPassword, err := hashPassword(user.Password)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+	user.Password = hashedPassword
+
+	if !slices.Contains(teacherWorkingStatuses, userTeacher.WorkingStatus) {
+		return fmt.Errorf("%w: working status must be one of %v, got: %s", ErrValidationFailed, teacherWorkingStatuses, userTeacher.WorkingStatus)
+	}
+
+	exists, err := s.subjectRepo.Exists(userTeacher.SubjectID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("%w: subject not found: %d", ErrNotFound, userTeacher.SubjectID)
+	}
+
+	if err := s.userRepo.CreateTeacher(user, userTeacher); err != nil {
+		return fmt.Errorf("failed to create teacher: %w", err)
+	}
+	return nil
 }
 
-func (s *TeacherService) ListTeachers(page, pageSize int, name, email string) ([]model.Teacher, int, error) {
+func (s *TeacherService) ListTeachers(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error) {
 	if page < 1 {
 		page = 1
 	}
 	if pageSize < 1 || pageSize > 100 {
 		pageSize = 20
 	}
-	return s.teacherRepo.List(page, pageSize, name, email)
+	return s.userRepo.ListTeachers(page, pageSize, name, email)
 }
 
-func (s *TeacherService) CreateTeacher(req model.NewTeacher) error {
-	// Business validation
-	if !slices.Contains(teacherGenders, req.Gender) {
-		return fmt.Errorf("%w: gender must be one of %v, got: %s", ErrValidationFailed, teacherGenders, req.Gender)
+func (s *TeacherService) DeleteTeacher(teacherID int64) error {
+	if err := s.userRepo.DeleteTeacher(teacherID); err != nil {
+		return fmt.Errorf("failed to delete teacher: %w", err)
 	}
-
-	if !slices.Contains(teacherWorkingStatuses, req.WorkingStatus) {
-		return fmt.Errorf("%w: working status must be one of %v, got: %s", ErrValidationFailed, teacherWorkingStatuses, req.WorkingStatus)
-	}
-
-	if err := validatePassword(req.Password); err != nil {
-		return err
-	}
-
-	hashedPassword, err := hashPassword(req.Password)
-	if err != nil {
-		return err
-	}
-
-	// Check if subject exists
-	exists, err := s.subjectRepo.Exists(req.SubjectID)
-	if err != nil {
-		return err
-	}
-	if !exists {
-		return fmt.Errorf("%w: subject not found: %d", ErrNotFound, req.SubjectID)
-	}
-
-	if req.Email != nil {
-		exists, err = s.userRepo.EmailExists(*req.Email)
-		if err != nil {
-			return fmt.Errorf("failed to check if email exists: %w", err)
-		}
-		if exists {
-			return fmt.Errorf("%w: email already exists: %s", ErrValidationFailed, *req.Email)
-		}
-	}
-
-	exists, err = s.userRepo.UsernameExists(req.Username)
-	if err != nil {
-		return fmt.Errorf("failed to check if username exists: %w", err)
-	}
-	if exists {
-		return fmt.Errorf("%w: username already exists: %s", ErrValidationFailed, req.Username)
-	}
-
-	// Build user model
-	user := &model.User{
-		Username: req.Username,
-		Password: hashedPassword,
-		Email:    req.Email,
-		Role:     constant.RoleTeacher,
-	}
-
-	// Build teacher model
-	teacher := &model.Teacher{
-		Name:          req.Name,
-		SubjectID:     req.SubjectID,
-		DateOfBirth:   req.DateOfBirth,
-		Gender:        req.Gender,
-		HireDate:      req.HireDate,
-		WorkingStatus: req.WorkingStatus,
-	}
-
-	// Create teacher and user in a single transaction
-	if err := s.teacherRepo.Create(user, teacher); err != nil {
-		return fmt.Errorf("failed to create teacher: %w", err)
-	}
-
 	return nil
 }

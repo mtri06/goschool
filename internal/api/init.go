@@ -40,21 +40,20 @@ func InitServer() http.Handler {
 
 	// Init repositories
 	userRepo := repository.NewUserRepository(dbClient)
-	teacherRepo := repository.NewTeacherRepository(dbClient)
 	subjectRepo := repository.NewSubjectRepository(dbClient)
 	tokenRepo := repository.NewTokenRepository(dbClient)
 
 	// Init services
-	userService := services.NewUserService(userRepo)
-	teacherService := services.NewTeacherService(teacherRepo, userRepo, subjectRepo)
-	authService := services.NewAuthService(userRepo, tokenRepo)
+	userSvc := services.NewUserService(userRepo)
+	teacherSvc := services.NewTeacherService(userRepo, subjectRepo, userSvc)
+	authSvc := services.NewAuthService(userRepo, tokenRepo)
 
 	// Seed admin user
-	userService.SeedAdminUser()
+	userSvc.SeedAdminUser()
 
 	// Init handlers
-	teacherHandler := handler.NewTeacherHandler(teacherService, serviceErrMapping)
-	authHandler := handler.NewAuthHandler(authService, serviceErrMapping)
+	teacherHandler := handler.NewTeacherHandler(teacherSvc, serviceErrMapping)
+	authHandler := handler.NewAuthHandler(authSvc, serviceErrMapping)
 
 	// Mount routes
 	routes.MountTeacherRoutes(r, teacherHandler)

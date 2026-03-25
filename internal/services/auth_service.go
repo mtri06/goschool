@@ -117,7 +117,7 @@ func (s *AuthService) RefreshTokens(accessToken, refreshToken string) (*model.Au
 	// Access token must be expired
 	expTime, _ := aClaims.GetExpirationTime()
 	if expTime != nil && expTime.Unix() > time.Now().Unix() {
-		log.Warn().Msg("Access token is not expired")
+		log.Warn().Msg("Access token has not expired")
 		return nil, ErrUnauthorized
 	}
 

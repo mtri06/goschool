@@ -12,18 +12,18 @@ import (
 	"github.com/go-chi/render"
 )
 
-type TeacherService interface {
-	CreateTeacher(req model.NewTeacher) error
-	ListTeachers(page, pageSize int, name, email string) ([]model.Teacher, int, error)
-	DeleteTeacher(id int64) error
+type TeacherSvc interface {
+	CreateTeacher(newTeacher *model.NewTeacher) error
+	ListTeachers(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error)
+	DeleteTeacher(teacherID int64) error
 }
 
 type TeacherHandler struct {
-	teacherSvc TeacherService
+	teacherSvc TeacherSvc
 	errMap     httpx.APIErrorMap
 }
 
-func NewTeacherHandler(teacherSvc TeacherService, errMap httpx.APIErrorMap) *TeacherHandler {
+func NewTeacherHandler(teacherSvc TeacherSvc, errMap httpx.APIErrorMap) *TeacherHandler {
 	return &TeacherHandler{teacherSvc: teacherSvc, errMap: errMap}
 }
 
@@ -71,7 +71,7 @@ func (h *TeacherHandler) GetTeachers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if teachers == nil {
-		teachers = []model.Teacher{}
+		teachers = []model.TeacherDetails{}
 	}
 
 	render.JSON(w, r, map[string]any{
