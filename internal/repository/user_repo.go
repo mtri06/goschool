@@ -222,27 +222,16 @@ func (r *UserRepository) DeleteTeacher(teacherID int64) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		}
-	}()
+	defer tx.Rollback()
 
-	res, execErr := tx.Exec(`DELETE FROM user_teachers WHERE user_id = $1`, teacherID)
-	if execErr != nil {
-		err = execErr
-		return fmt.Errorf("failed to delete teacher: %w", err)
-	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
-	}
-	if n == 0 {
-		return nil
-	}
-
-	if _, err = tx.Exec(`DELETE FROM users WHERE id = $1`, teacherID); err != nil {
+	// Delete the user with role = 'teacher'; cascades to user_teachers automatically.
+	if _, err = tx.Exec(`DELETE FROM users WHERE id = $1 AND role = 'teacher'`, teacherID); err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	// Explicit delete of the teacher record (no-op when cascade already removed it).
+	if _, err = tx.Exec(`DELETE FROM user_teachers WHERE user_id = $1`, teacherID); err != nil {
+		return fmt.Errorf("failed to delete teacher: %w", err)
 	}
 
 	if err = tx.Commit(); err != nil {

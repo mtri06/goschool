@@ -135,6 +135,14 @@ func (s *TeacherService) UpdateTeacher(teacherID int64, update *model.UpdateTeac
 }
 
 func (s *TeacherService) DeleteTeacher(teacherID int64) error {
+	exists, err := s.userRepo.TeacherExists(teacherID)
+	if err != nil {
+		return fmt.Errorf("failed to check if teacher exists: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("%w: teacher not found with id: %d", ErrNotFound, teacherID)
+	}
+
 	if err := s.userRepo.DeleteTeacher(teacherID); err != nil {
 		return fmt.Errorf("failed to delete teacher: %w", err)
 	}
