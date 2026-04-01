@@ -67,6 +67,10 @@ func (r *UserRepository) GetByUsername(username string) (*model.User, error) {
 
 // Create inserts a new user and returns the generated ID
 func (r *UserRepository) CreateUser(user *model.User) error {
+	if user == nil {
+		return fmt.Errorf("user cannot be nil")
+	}
+
 	return r.db.QueryRow(`
 		INSERT INTO users (username, password, email, role, name, date_of_birth, gender)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -76,30 +80,34 @@ func (r *UserRepository) CreateUser(user *model.User) error {
 }
 
 // CreateTeacher inserts a user and a matching user_teacher record in a single transaction
-func (r *UserRepository) CreateTeacher(user *model.User, teacher *model.UserTeacher) error {
+func (r *UserRepository) CreateTeacher(newTeacher *model.NewTeacher) error {
+	if newTeacher == nil {
+		return fmt.Errorf("newTeacher cannot be nil")
+	}
+
 	tx, err := r.db.Beginx()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
+	var userID int64
 	err = tx.QueryRow(`
 		INSERT INTO users (username, password, email, role, name, date_of_birth, gender)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, created_at, updated_at`,
-		user.Username, user.Password, user.Email, user.Role, user.Name, user.DateOfBirth, user.Gender,
-	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
+		VALUES ($1, $2, $3, 'teacher', $4, $5, $6)
+		RETURNING id`,
+		newTeacher.Username, newTeacher.Password, newTeacher.Email,
+		newTeacher.Name, newTeacher.DateOfBirth, newTeacher.Gender,
+	).Scan(&userID)
 	if err != nil {
 		return fmt.Errorf("failed to insert user: %w", err)
 	}
 
-	teacher.UserID = user.ID
-	err = tx.QueryRow(`
+	_, err = tx.Exec(`
 		INSERT INTO user_teachers (user_id, subject_id, hire_date, working_status)
-		VALUES ($1, $2, $3, $4)
-		RETURNING created_at, updated_at`,
-		teacher.UserID, teacher.SubjectID, teacher.HireDate, teacher.WorkingStatus,
-	).Scan(&teacher.CreatedAt, &teacher.UpdatedAt)
+		VALUES ($1, $2, $3, $4)`,
+		userID, newTeacher.SubjectID, newTeacher.HireDate, newTeacher.WorkingStatus,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to insert teacher: %w", err)
 	}
@@ -187,6 +195,10 @@ func (r *UserRepository) TeacherExists(id int64) (bool, error) {
 
 // UpdateTeacher updates user and user_teacher fields for the given teacher ID in a single transaction.
 func (r *UserRepository) UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error {
+	if update == nil {
+		return fmt.Errorf("update cannot be nil")
+	}
+
 	tx, err := r.db.Beginx()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)

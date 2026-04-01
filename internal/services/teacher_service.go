@@ -9,7 +9,7 @@ import (
 )
 
 type TeacherSvcUserRepo interface {
-	CreateTeacher(user *model.User, teacher *model.UserTeacher) error
+	CreateTeacher(newTeacher *model.NewTeacher) error
 	TeacherExists(id int64) (bool, error)
 	UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error
 	DeleteTeacher(teacherID int64) error
@@ -49,35 +49,27 @@ func (s *TeacherService) CreateTeacher(newTeacher *model.NewTeacher) error {
 		DateOfBirth: newTeacher.DateOfBirth,
 		Gender:      newTeacher.Gender,
 	}
-	userTeacher := &model.UserTeacher{
-		SubjectID:     newTeacher.SubjectID,
-		HireDate:      newTeacher.HireDate,
-		WorkingStatus: newTeacher.WorkingStatus,
-	}
-
 	if err := s.userSvc.validateUser(user); err != nil {
 		return err
 	}
 
-	hashedPassword, err := hashPassword(user.Password)
+	hashedPassword, err := hashPassword(newTeacher.Password)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
-	user.Password = hashedPassword
+	newTeacher.Password = hashedPassword
 
-	if !slices.Contains(teacherWorkingStatuses, userTeacher.WorkingStatus) {
-		return fmt.Errorf("%w: working status must be one of %v, got: %s", ErrValidationFailed, teacherWorkingStatuses, userTeacher.WorkingStatus)
+	if !slices.Contains(teacherWorkingStatuses, newTeacher.WorkingStatus) {
+		return fmt.Errorf("%w: working status must be one of %v, got: %s", ErrValidationFailed, teacherWorkingStatuses, newTeacher.WorkingStatus)
 	}
 
-	exists, err := s.subjectRepo.Exists(userTeacher.SubjectID)
-	if err != nil {
+	if exists, err := s.subjectRepo.Exists(newTeacher.SubjectID); err != nil {
 		return err
-	}
-	if !exists {
-		return fmt.Errorf("%w: subject not found: %d", ErrNotFound, userTeacher.SubjectID)
+	} else if !exists {
+		return fmt.Errorf("%w: subject not found: %d", ErrNotFound, newTeacher.SubjectID)
 	}
 
-	if err := s.userRepo.CreateTeacher(user, userTeacher); err != nil {
+	if err := s.userRepo.CreateTeacher(newTeacher); err != nil {
 		return fmt.Errorf("failed to create teacher: %w", err)
 	}
 	return nil

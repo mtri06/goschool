@@ -62,6 +62,9 @@ func (r *TokenRepository) RevokeByBody(body string) error {
 
 // CreateToken inserts a new token and returns the generated ID
 func (r *TokenRepository) CreateToken(token *model.Token) error {
+	if token == nil {
+		return fmt.Errorf("token cannot be nil")
+	}
 	return r.db.QueryRow(`
 		INSERT INTO tokens (body, user_id, type, expires_at, is_revoked, is_used, is_blacklisted)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
