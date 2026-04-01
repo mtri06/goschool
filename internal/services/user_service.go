@@ -19,6 +19,7 @@ var (
 		constant.WorkingStatusInactive,
 		constant.WorkingStatusOnLeave,
 	}
+	allRoles = []string{constant.RoleAdmin, constant.RoleTeacher, constant.RoleStudent}
 )
 
 type UserSvcUserRepo interface {
@@ -71,6 +72,10 @@ func (s *UserService) SeedAdminUser() {
 func (s *UserService) validateUser(user *model.User) error {
 	if !slices.Contains(allGenders, user.Gender) {
 		return fmt.Errorf("%w: gender must be one of %v, got: %s", ErrValidationFailed, allGenders, user.Gender)
+	}
+
+	if !slices.Contains(allRoles, user.Role) {
+		return fmt.Errorf("%w: role must be one of %v, got: %s", ErrValidationFailed, allRoles, user.Role)
 	}
 
 	if err := validatePassword(user.Password); err != nil {
