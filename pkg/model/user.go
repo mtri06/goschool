@@ -27,6 +27,16 @@ type NewTeacher struct {
 	WorkingStatus string    `json:"workingStatus" validate:"required"`
 }
 
+type UpdateTeacher struct {
+	Email         *string   `json:"email" validate:"omitempty,email"`
+	Name          string    `json:"name" validate:"required"`
+	DateOfBirth   time.Time `json:"dateOfBirth" validate:"required"`
+	Gender        string    `json:"gender" validate:"required"`
+	SubjectID     int64     `json:"subjectId" validate:"required"`
+	HireDate      time.Time `json:"hireDate" validate:"required"`
+	WorkingStatus string    `json:"workingStatus" validate:"required"`
+}
+
 type TeacherDetails struct {
 	ID            int64     `json:"id" db:"id"`
 	Username      string    `json:"username" db:"username"`

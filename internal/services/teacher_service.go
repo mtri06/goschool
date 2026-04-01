@@ -5,12 +5,16 @@ import (
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
 	"slices"
+	"strings"
 )
 
 type TeacherSvcUserRepo interface {
 	CreateTeacher(user *model.User, teacher *model.UserTeacher) error
+	TeacherExists(id int64) (bool, error)
+	UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error
 	DeleteTeacher(teacherID int64) error
 	ListTeachers(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error)
+	EmailExists(email string) (bool, error)
 }
 
 type TeacherSvcSubjectRepo interface {
@@ -87,6 +91,47 @@ func (s *TeacherService) ListTeachers(page, pageSize int, name, email string) ([
 		pageSize = 20
 	}
 	return s.userRepo.ListTeachers(page, pageSize, name, email)
+}
+
+func (s *TeacherService) UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error {
+	if !slices.Contains(allGenders, update.Gender) {
+		return fmt.Errorf("%w: gender must be one of %v, got: %s", ErrValidationFailed, allGenders, update.Gender)
+	}
+
+	if !slices.Contains(teacherWorkingStatuses, update.WorkingStatus) {
+		return fmt.Errorf("%w: working status must be one of %v, got: %s", ErrValidationFailed, teacherWorkingStatuses, update.WorkingStatus)
+	}
+
+	exists, err := s.userRepo.TeacherExists(teacherID)
+	if err != nil {
+		return fmt.Errorf("failed to check if teacher exists: %w", err)
+	}
+	if !exists {
+		return fmt.Errorf("%w: teacher not found with id: %d", ErrNotFound, teacherID)
+	}
+
+	if exists, err := s.subjectRepo.Exists(update.SubjectID); err != nil {
+		return fmt.Errorf("failed to check if subject exists: %w", err)
+	} else if !exists {
+		return fmt.Errorf("%w: subject not found: %d", ErrNotFound, update.SubjectID)
+	}
+
+	if update.Email != nil {
+		email := strings.ToLower(*update.Email)
+		update.Email = &email
+		exists, err := s.userRepo.EmailExists(email)
+		if err != nil {
+			return fmt.Errorf("failed to check if email exists: %w", err)
+		}
+		if exists {
+			return fmt.Errorf("%w: email already exists: %s", ErrValidationFailed, email)
+		}
+	}
+
+	if err := s.userRepo.UpdateTeacher(teacherID, update); err != nil {
+		return fmt.Errorf("failed to update teacher: %w", err)
+	}
+	return nil
 }
 
 func (s *TeacherService) DeleteTeacher(teacherID int64) error {

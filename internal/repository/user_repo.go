@@ -175,6 +175,47 @@ func (r *UserRepository) ListTeachers(page, pageSize int, name, email string) ([
 	return teachers, total, nil
 }
 
+// TeacherExists checks if a teacher with the given user ID exists.
+func (r *UserRepository) TeacherExists(id int64) (bool, error) {
+	var exists bool
+	err := r.db.Get(&exists, `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND role = 'teacher')`, id)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if teacher exists: %w", err)
+	}
+	return exists, nil
+}
+
+// UpdateTeacher updates user and user_teacher fields for the given teacher ID in a single transaction.
+func (r *UserRepository) UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error {
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Update users with role = 'teacher' condition to verify the ID belongs to a teacher
+	_, err = tx.Exec(
+		`UPDATE users SET name = $1, date_of_birth = $2, gender = $3, email = $4, updated_at = NOW() WHERE id = $5 AND role = 'teacher'`,
+		update.Name, update.DateOfBirth, update.Gender, update.Email, teacherID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+
+	if _, err := tx.Exec(
+		`UPDATE user_teachers SET subject_id = $1, hire_date = $2, working_status = $3, updated_at = NOW() WHERE user_id = $4`,
+		update.SubjectID, update.HireDate, update.WorkingStatus, teacherID,
+	); err != nil {
+		return fmt.Errorf("failed to update teacher: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
 // DeleteTeacher removes the teacher and their associated user in a single transaction.
 func (r *UserRepository) DeleteTeacher(teacherID int64) error {
 	tx, err := r.db.Beginx()
