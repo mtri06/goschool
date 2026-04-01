@@ -27,7 +27,7 @@ func InitServer() http.Handler {
 	log.Info().Msg("Connect to Postgres successfully")
 
 	// Migrate database
-	db.Migrate(dbClient)
+	db.Migrate(dbClient.DB)
 
 	r := chi.NewRouter()
 

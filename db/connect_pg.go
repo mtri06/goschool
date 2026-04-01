@@ -1,14 +1,13 @@
 package db
 
 import (
-	"database/sql"
-
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog/log"
 )
 
-func ConnectPostgres(url string) *sql.DB {
+func ConnectPostgres(url string) *sqlx.DB {
 	cfg, err := pgx.ParseConfig(url)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to parse postgres URL")
@@ -16,7 +15,7 @@ func ConnectPostgres(url string) *sql.DB {
 
 	cfg.RuntimeParams["TimeZone"] = "UTC"
 
-	db := stdlib.OpenDB(*cfg)
+	db := sqlx.NewDb(stdlib.OpenDB(*cfg), "pgx")
 
 	if err := db.Ping(); err != nil {
 		log.Fatal().Err(err).Msg("failed to ping postgres")

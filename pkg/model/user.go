@@ -35,9 +35,9 @@ type TeacherDetails struct {
 	Name          string    `json:"name" db:"name"`
 	DateOfBirth   time.Time `json:"dateOfBirth" db:"date_of_birth"`
 	Gender        string    `json:"gender" db:"gender"`
-	SubjectID     int64     `json:"subjectId" validate:"required"`
-	HireDate      time.Time `json:"hireDate" validate:"required"`
-	WorkingStatus string    `json:"workingStatus" validate:"required"`
+	SubjectID     int64     `json:"subjectId" db:"subject_id"`
+	HireDate      time.Time `json:"hireDate" db:"hire_date"`
+	WorkingStatus string    `json:"workingStatus" db:"working_status"`
 	CreatedAt     time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt     time.Time `json:"updatedAt" db:"updated_at"`
 }

@@ -7,20 +7,22 @@ import (
 	"sync"
 
 	"goschool/pkg/model"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type UserRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-func NewUserRepository(db *sql.DB) *UserRepository {
+func NewUserRepository(db *sqlx.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
 // EmailExists checks if a user with the given email exists in the database
 func (r *UserRepository) EmailExists(email string) (bool, error) {
 	var exists bool
-	err := r.db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", email).Scan(&exists)
+	err := r.db.Get(&exists, "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", email)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if email exists: %w", err)
 	}
@@ -30,7 +32,7 @@ func (r *UserRepository) EmailExists(email string) (bool, error) {
 // UsernameExists checks if a user with the given username exists in the database
 func (r *UserRepository) UsernameExists(username string) (bool, error) {
 	var exists bool
-	err := r.db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)", username).Scan(&exists)
+	err := r.db.Get(&exists, "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)", username)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if username exists: %w", err)
 	}
@@ -40,10 +42,7 @@ func (r *UserRepository) UsernameExists(username string) (bool, error) {
 // GetByID retrieves a user by ID
 func (r *UserRepository) GetByID(id int64) (*model.User, error) {
 	var user model.User
-	err := r.db.QueryRow(`
-		SELECT id, username, password, email, role, created_at, updated_at
-		FROM users WHERE id = $1
-	`, id).Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+	err := r.db.Get(&user, `SELECT * FROM users WHERE id = $1`, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -56,10 +55,7 @@ func (r *UserRepository) GetByID(id int64) (*model.User, error) {
 // GetByUsername retrieves a user by username
 func (r *UserRepository) GetByUsername(username string) (*model.User, error) {
 	var user model.User
-	err := r.db.QueryRow(`
-		SELECT id, username, password, email, role, created_at, updated_at
-		FROM users WHERE username = $1
-	`, username).Scan(&user.ID, &user.Username, &user.Password, &user.Email, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+	err := r.db.Get(&user, `SELECT * FROM users WHERE username = $1`, username)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -71,23 +67,17 @@ func (r *UserRepository) GetByUsername(username string) (*model.User, error) {
 
 // Create inserts a new user and returns the generated ID
 func (r *UserRepository) CreateUser(user *model.User) error {
-	err := r.db.
-		QueryRow(`
-			INSERT INTO users (username, password, email, role, name, date_of_birth, gender)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)
-			RETURNING id, created_at, updated_at`,
-			user.Username, user.Password, user.Email, user.Role, user.Name, user.DateOfBirth, user.Gender,
-		).
-		Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
-	if err != nil {
-		return fmt.Errorf("failed to create user: %w", err)
-	}
-	return nil
+	return r.db.QueryRow(`
+		INSERT INTO users (username, password, email, role, name, date_of_birth, gender)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, created_at, updated_at`,
+		user.Username, user.Password, user.Email, user.Role, user.Name, user.DateOfBirth, user.Gender,
+	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 }
 
 // CreateTeacher inserts a user and a matching user_teacher record in a single transaction
 func (r *UserRepository) CreateTeacher(user *model.User, teacher *model.UserTeacher) error {
-	tx, err := r.db.Begin()
+	tx, err := r.db.Beginx()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
@@ -152,7 +142,7 @@ func (r *UserRepository) ListTeachers(page, pageSize int, name, email string) ([
 	go func() {
 		defer wg.Done()
 		q := fmt.Sprintf(`SELECT COUNT(*) FROM users u %s`, where)
-		if err := r.db.QueryRow(q, args...).Scan(&total); err != nil {
+		if err := r.db.Get(&total, q, args...); err != nil {
 			countErr = fmt.Errorf("failed to count teachers: %w", err)
 		}
 	}()
@@ -168,26 +158,8 @@ func (r *UserRepository) ListTeachers(page, pageSize int, name, email string) ([
 			%s
 			LIMIT $%d OFFSET $%d
 		`, where, len(listArgs)-1, len(listArgs))
-		rows, err := r.db.Query(q, listArgs...)
-		if err != nil {
+		if err := r.db.Select(&teachers, q, listArgs...); err != nil {
 			listErr = fmt.Errorf("failed to list teachers: %w", err)
-			return
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			var t model.TeacherDetails
-			if err := rows.Scan(
-				&t.ID, &t.Username, &t.Email, &t.Role, &t.Name, &t.DateOfBirth, &t.Gender,
-				&t.SubjectID, &t.HireDate, &t.WorkingStatus, &t.CreatedAt, &t.UpdatedAt,
-			); err != nil {
-				listErr = fmt.Errorf("failed to scan teacher: %w", err)
-				return
-			}
-			teachers = append(teachers, t)
-		}
-		if err := rows.Err(); err != nil {
-			listErr = fmt.Errorf("rows error: %w", err)
 		}
 	}()
 
@@ -205,7 +177,7 @@ func (r *UserRepository) ListTeachers(page, pageSize int, name, email string) ([
 
 // DeleteTeacher removes the teacher and their associated user in a single transaction.
 func (r *UserRepository) DeleteTeacher(teacherID int64) error {
-	tx, err := r.db.Begin()
+	tx, err := r.db.Beginx()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
@@ -215,8 +187,9 @@ func (r *UserRepository) DeleteTeacher(teacherID int64) error {
 		}
 	}()
 
-	var res sql.Result
-	if res, err = tx.Exec(`DELETE FROM user_teachers WHERE user_id = $1`, teacherID); err != nil {
+	res, execErr := tx.Exec(`DELETE FROM user_teachers WHERE user_id = $1`, teacherID)
+	if execErr != nil {
+		err = execErr
 		return fmt.Errorf("failed to delete teacher: %w", err)
 	}
 	n, err := res.RowsAffected()

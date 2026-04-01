@@ -5,23 +5,22 @@ import (
 	"fmt"
 
 	"goschool/pkg/model"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type TokenRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-func NewTokenRepository(db *sql.DB) *TokenRepository {
+func NewTokenRepository(db *sqlx.DB) *TokenRepository {
 	return &TokenRepository{db: db}
 }
 
 // GetByBody retrieves a token by its body
 func (r *TokenRepository) GetByBody(body string) (*model.Token, error) {
 	var t model.Token
-	err := r.db.QueryRow(`
-		SELECT id, body, user_id, type, expires_at, is_revoked, is_used, is_blacklisted, created_at, updated_at
-		FROM tokens WHERE body = $1
-	`, body).Scan(&t.ID, &t.Body, &t.UserID, &t.Type, &t.ExpiresAt, &t.IsRevoked, &t.IsUsed, &t.IsBlacklisted, &t.CreatedAt, &t.UpdatedAt)
+	err := r.db.Get(&t, `SELECT * FROM tokens WHERE body = $1`, body)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -63,13 +62,9 @@ func (r *TokenRepository) RevokeByBody(body string) error {
 
 // CreateToken inserts a new token and returns the generated ID
 func (r *TokenRepository) CreateToken(token *model.Token) error {
-	err := r.db.QueryRow(`
+	return r.db.QueryRow(`
 		INSERT INTO tokens (body, user_id, type, expires_at, is_revoked, is_used, is_blacklisted)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
 	`, token.Body, token.UserID, token.Type, token.ExpiresAt, token.IsRevoked, token.IsUsed, token.IsBlacklisted).Scan(&token.ID, &token.CreatedAt, &token.UpdatedAt)
-	if err != nil {
-		return fmt.Errorf("failed to insert token: %w", err)
-	}
-	return nil
 }
