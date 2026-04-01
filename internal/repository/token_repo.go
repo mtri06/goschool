@@ -69,5 +69,8 @@ func (r *TokenRepository) CreateToken(token *model.Token) error {
 		INSERT INTO tokens (body, user_id, type, expires_at, is_revoked, is_used, is_blacklisted)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
-	`, token.Body, token.UserID, token.Type, token.ExpiresAt, token.IsRevoked, token.IsUsed, token.IsBlacklisted).Scan(&token.ID, &token.CreatedAt, &token.UpdatedAt)
+		`,
+		token.Body, token.UserID, token.Type, token.ExpiresAt, token.IsRevoked, token.IsUsed, token.IsBlacklisted,
+	).
+		Scan(&token.ID, &token.CreatedAt, &token.UpdatedAt)
 }

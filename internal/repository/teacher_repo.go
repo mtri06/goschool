@@ -1,0 +1,211 @@
+package repository
+
+import (
+	"database/sql"
+	"fmt"
+	"goschool/pkg/model"
+	"strings"
+	"sync"
+
+	"github.com/jmoiron/sqlx"
+)
+
+type TeacherRepository struct {
+	db *sqlx.DB
+}
+
+func NewTeacherRepository(db *sqlx.DB) *TeacherRepository {
+	return &TeacherRepository{db: db}
+}
+
+// CreateTeacher inserts a user and a matching user_teacher record in a single transaction
+func (r *TeacherRepository) CreateTeacher(newTeacher *model.NewTeacher) error {
+	if newTeacher == nil {
+		return fmt.Errorf("newTeacher cannot be nil")
+	}
+
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var userID int64
+	err = tx.QueryRow(`
+		INSERT INTO users (username, password, email, role, name, date_of_birth, gender)
+		VALUES ($1, $2, $3, 'teacher', $4, $5, $6)
+		RETURNING id`,
+		newTeacher.Username, newTeacher.Password, newTeacher.Email,
+		newTeacher.Name, newTeacher.DateOfBirth, newTeacher.Gender,
+	).Scan(&userID)
+	if err != nil {
+		return fmt.Errorf("failed to insert user: %w", err)
+	}
+
+	_, err = tx.Exec(`
+		INSERT INTO user_teachers (user_id, subject_id, hire_date, working_status)
+		VALUES ($1, $2, $3, $4)`,
+		userID, newTeacher.SubjectID, newTeacher.HireDate, newTeacher.WorkingStatus,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert teacher: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+// ListTeachers returns a paginated list of teachers and the total count, with optional filters by name and email
+func (r *TeacherRepository) ListTeachers(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error) {
+	offset := (page - 1) * pageSize
+
+	var conditions []string
+	var args []any
+	conditions = append(conditions, "u.role = 'teacher'")
+	if name != "" {
+		args = append(args, "%"+name+"%")
+		conditions = append(conditions, fmt.Sprintf("u.name ILIKE $%d", len(args)))
+	}
+	if email != "" {
+		email = strings.ToLower(email)
+		args = append(args, "%"+email+"%")
+		conditions = append(conditions, fmt.Sprintf("u.email LIKE $%d", len(args)))
+	}
+	where := "WHERE " + strings.Join(conditions, " AND ")
+
+	var (
+		total    int
+		teachers []model.TeacherDetails
+		countErr error
+		listErr  error
+		wg       sync.WaitGroup
+	)
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		q := fmt.Sprintf(`SELECT COUNT(*) FROM users u %s`, where)
+		if err := r.db.Get(&total, q, args...); err != nil {
+			countErr = fmt.Errorf("failed to count teachers: %w", err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		listArgs := append(args, pageSize, offset)
+		q := fmt.Sprintf(`
+			SELECT u.id, u.username, u.email, u.role, u.name, u.date_of_birth, u.gender,
+			       t.subject_id, t.hire_date, t.working_status, t.created_at, t.updated_at
+			FROM users u
+			JOIN user_teachers t ON t.user_id = u.id
+			%s
+			LIMIT $%d OFFSET $%d
+		`, where, len(listArgs)-1, len(listArgs))
+		if err := r.db.Select(&teachers, q, listArgs...); err != nil {
+			listErr = fmt.Errorf("failed to list teachers: %w", err)
+		}
+	}()
+
+	wg.Wait()
+
+	if countErr != nil {
+		return nil, 0, fmt.Errorf("failed to count teachers: %w", countErr)
+	}
+	if listErr != nil {
+		return nil, 0, fmt.Errorf("failed to list teachers: %w", listErr)
+	}
+
+	return teachers, total, nil
+}
+
+// GetTeacherByID retrieves a teacher with full details by user ID.
+func (r *TeacherRepository) GetTeacherByID(id int64) (*model.TeacherDetails, error) {
+	var teacher model.TeacherDetails
+	err := r.db.Get(&teacher, `
+		SELECT u.id, u.username, u.email, u.role, u.name, u.date_of_birth, u.gender,
+		       t.subject_id, t.hire_date, t.working_status, t.created_at, t.updated_at
+		FROM users u
+		JOIN user_teachers t ON t.user_id = u.id
+		WHERE u.id = $1 AND u.role = 'teacher'`, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get teacher by id: %w", err)
+	}
+	return &teacher, nil
+}
+
+// TeacherExists checks if a teacher with the given user ID exists.
+func (r *TeacherRepository) TeacherExists(id int64) (bool, error) {
+	var exists bool
+	err := r.db.Get(&exists, `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND role = 'teacher')`, id)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if teacher exists: %w", err)
+	}
+	return exists, nil
+}
+
+// UpdateTeacher updates user and user_teacher fields for the given teacher ID in a single transaction.
+func (r *TeacherRepository) UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error {
+	if update == nil {
+		return fmt.Errorf("update cannot be nil")
+	}
+
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Update users with role = 'teacher' condition to verify the ID belongs to a teacher
+	_, err = tx.Exec(
+		`UPDATE users SET name = $1, date_of_birth = $2, gender = $3, email = $4, updated_at = NOW() WHERE id = $5 AND role = 'teacher'`,
+		update.Name, update.DateOfBirth, update.Gender, update.Email, teacherID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+
+	if _, err := tx.Exec(
+		`UPDATE user_teachers SET subject_id = $1, hire_date = $2, working_status = $3, updated_at = NOW() WHERE user_id = $4`,
+		update.SubjectID, update.HireDate, update.WorkingStatus, teacherID,
+	); err != nil {
+		return fmt.Errorf("failed to update teacher: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteTeacher removes the teacher and their associated user in a single transaction.
+func (r *TeacherRepository) DeleteTeacher(teacherID int64) error {
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Delete the user with role = 'teacher'; cascades to user_teachers automatically.
+	if _, err = tx.Exec(`DELETE FROM users WHERE id = $1 AND role = 'teacher'`, teacherID); err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	// Explicit delete of the teacher record (no-op when cascade already removed it).
+	if _, err = tx.Exec(`DELETE FROM user_teachers WHERE user_id = $1`, teacherID); err != nil {
+		return fmt.Errorf("failed to delete teacher: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}

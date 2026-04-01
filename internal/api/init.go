@@ -40,12 +40,13 @@ func InitServer() http.Handler {
 
 	// Init repositories
 	userRepo := repository.NewUserRepository(dbClient)
+	teacherRepo := repository.NewTeacherRepository(dbClient)
 	subjectRepo := repository.NewSubjectRepository(dbClient)
 	tokenRepo := repository.NewTokenRepository(dbClient)
 
 	// Init services
 	userSvc := services.NewUserService(userRepo)
-	teacherSvc := services.NewTeacherService(userRepo, subjectRepo, userSvc)
+	teacherSvc := services.NewTeacherService(userRepo, teacherRepo, subjectRepo, userSvc)
 	authSvc := services.NewAuthService(userRepo, tokenRepo)
 
 	// Seed admin user

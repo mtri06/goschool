@@ -9,13 +9,16 @@ import (
 )
 
 type TeacherSvcUserRepo interface {
+	EmailExists(email string) (bool, error)
+}
+
+type UserSvcTeacherRepo interface {
 	CreateTeacher(newTeacher *model.NewTeacher) error
 	GetTeacherByID(id int64) (*model.TeacherDetails, error)
 	TeacherExists(id int64) (bool, error)
 	UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error
 	DeleteTeacher(teacherID int64) error
 	ListTeachers(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error)
-	EmailExists(email string) (bool, error)
 }
 
 type TeacherSvcSubjectRepo interface {
@@ -28,13 +31,15 @@ type TeacherSvcUserSvc interface {
 
 type TeacherService struct {
 	userRepo    TeacherSvcUserRepo
+	teacherRepo UserSvcTeacherRepo
 	subjectRepo TeacherSvcSubjectRepo
 	userSvc     TeacherSvcUserSvc
 }
 
-func NewTeacherService(userRepo TeacherSvcUserRepo, subjectRepo TeacherSvcSubjectRepo, userSvc TeacherSvcUserSvc) *TeacherService {
+func NewTeacherService(userRepo TeacherSvcUserRepo, teacherRepo UserSvcTeacherRepo, subjectRepo TeacherSvcSubjectRepo, userSvc TeacherSvcUserSvc) *TeacherService {
 	return &TeacherService{
 		userRepo:    userRepo,
+		teacherRepo: teacherRepo,
 		subjectRepo: subjectRepo,
 		userSvc:     userSvc,
 	}
@@ -70,14 +75,14 @@ func (s *TeacherService) CreateTeacher(newTeacher *model.NewTeacher) error {
 		return fmt.Errorf("%w: subject not found: %d", ErrNotFound, newTeacher.SubjectID)
 	}
 
-	if err := s.userRepo.CreateTeacher(newTeacher); err != nil {
+	if err := s.teacherRepo.CreateTeacher(newTeacher); err != nil {
 		return fmt.Errorf("failed to create teacher: %w", err)
 	}
 	return nil
 }
 
 func (s *TeacherService) GetTeacherByID(teacherID int64) (*model.TeacherDetails, error) {
-	teacher, err := s.userRepo.GetTeacherByID(teacherID)
+	teacher, err := s.teacherRepo.GetTeacherByID(teacherID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get teacher: %w", err)
 	}
@@ -94,7 +99,7 @@ func (s *TeacherService) ListTeachers(page, pageSize int, name, email string) ([
 	if pageSize < 1 || pageSize > 100 {
 		pageSize = 20
 	}
-	return s.userRepo.ListTeachers(page, pageSize, name, email)
+	return s.teacherRepo.ListTeachers(page, pageSize, name, email)
 }
 
 func (s *TeacherService) UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error {
@@ -106,7 +111,7 @@ func (s *TeacherService) UpdateTeacher(teacherID int64, update *model.UpdateTeac
 		return fmt.Errorf("%w: working status must be one of %v, got: %s", ErrValidationFailed, teacherWorkingStatuses, update.WorkingStatus)
 	}
 
-	exists, err := s.userRepo.TeacherExists(teacherID)
+	exists, err := s.teacherRepo.TeacherExists(teacherID)
 	if err != nil {
 		return fmt.Errorf("failed to check if teacher exists: %w", err)
 	}
@@ -132,14 +137,14 @@ func (s *TeacherService) UpdateTeacher(teacherID int64, update *model.UpdateTeac
 		}
 	}
 
-	if err := s.userRepo.UpdateTeacher(teacherID, update); err != nil {
+	if err := s.teacherRepo.UpdateTeacher(teacherID, update); err != nil {
 		return fmt.Errorf("failed to update teacher: %w", err)
 	}
 	return nil
 }
 
 func (s *TeacherService) DeleteTeacher(teacherID int64) error {
-	exists, err := s.userRepo.TeacherExists(teacherID)
+	exists, err := s.teacherRepo.TeacherExists(teacherID)
 	if err != nil {
 		return fmt.Errorf("failed to check if teacher exists: %w", err)
 	}
@@ -147,7 +152,7 @@ func (s *TeacherService) DeleteTeacher(teacherID int64) error {
 		return fmt.Errorf("%w: teacher not found with id: %d", ErrNotFound, teacherID)
 	}
 
-	if err := s.userRepo.DeleteTeacher(teacherID); err != nil {
+	if err := s.teacherRepo.DeleteTeacher(teacherID); err != nil {
 		return fmt.Errorf("failed to delete teacher: %w", err)
 	}
 	return nil
