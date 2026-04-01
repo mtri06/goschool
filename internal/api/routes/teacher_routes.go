@@ -13,6 +13,7 @@ func MountTeacherRoutes(router chi.Router, h *handler.TeacherHandler) {
 
 	r.With(mw.Auth, mw.RequireRole(constant.RoleAdmin)).Post("/", h.CreateTeacher)
 	r.With(mw.Auth).Get("/", h.GetTeachers)
+	r.With(mw.Auth).Get("/{id}", h.GetTeacherByID)
 	r.With(mw.Auth, mw.RequireRole(constant.RoleAdmin)).Put("/{id}", h.UpdateTeacher)
 	r.With(mw.Auth, mw.RequireRole(constant.RoleAdmin)).Delete("/{id}", h.DeleteTeacher)
 

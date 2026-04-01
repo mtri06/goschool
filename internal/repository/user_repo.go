@@ -183,6 +183,24 @@ func (r *UserRepository) ListTeachers(page, pageSize int, name, email string) ([
 	return teachers, total, nil
 }
 
+// GetTeacherByID retrieves a teacher with full details by user ID.
+func (r *UserRepository) GetTeacherByID(id int64) (*model.TeacherDetails, error) {
+	var teacher model.TeacherDetails
+	err := r.db.Get(&teacher, `
+		SELECT u.id, u.username, u.email, u.role, u.name, u.date_of_birth, u.gender,
+		       t.subject_id, t.hire_date, t.working_status, t.created_at, t.updated_at
+		FROM users u
+		JOIN user_teachers t ON t.user_id = u.id
+		WHERE u.id = $1 AND u.role = 'teacher'`, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get teacher by id: %w", err)
+	}
+	return &teacher, nil
+}
+
 // TeacherExists checks if a teacher with the given user ID exists.
 func (r *UserRepository) TeacherExists(id int64) (bool, error) {
 	var exists bool

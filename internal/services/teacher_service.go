@@ -10,6 +10,7 @@ import (
 
 type TeacherSvcUserRepo interface {
 	CreateTeacher(newTeacher *model.NewTeacher) error
+	GetTeacherByID(id int64) (*model.TeacherDetails, error)
 	TeacherExists(id int64) (bool, error)
 	UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error
 	DeleteTeacher(teacherID int64) error
@@ -73,6 +74,17 @@ func (s *TeacherService) CreateTeacher(newTeacher *model.NewTeacher) error {
 		return fmt.Errorf("failed to create teacher: %w", err)
 	}
 	return nil
+}
+
+func (s *TeacherService) GetTeacherByID(teacherID int64) (*model.TeacherDetails, error) {
+	teacher, err := s.userRepo.GetTeacherByID(teacherID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get teacher: %w", err)
+	}
+	if teacher == nil {
+		return nil, fmt.Errorf("%w: teacher not found with id: %d", ErrNotFound, teacherID)
+	}
+	return teacher, nil
 }
 
 func (s *TeacherService) ListTeachers(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error) {

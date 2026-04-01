@@ -14,6 +14,7 @@ import (
 
 type TeacherSvc interface {
 	CreateTeacher(newTeacher *model.NewTeacher) error
+	GetTeacherByID(teacherID int64) (*model.TeacherDetails, error)
 	UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error
 	ListTeachers(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error)
 	DeleteTeacher(teacherID int64) error
@@ -41,6 +42,23 @@ func (h *TeacherHandler) CreateTeacher(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+}
+
+func (h *TeacherHandler) GetTeacherByID(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		httpx.RenderError(w, r, h.errMap, fmt.Errorf("%w: invalid teacher id", httpx.ErrInvalidQuery))
+		return
+	}
+
+	teacher, err := h.teacherSvc.GetTeacherByID(id)
+	if err != nil {
+		httpx.RenderError(w, r, h.errMap, err)
+		return
+	}
+
+	render.JSON(w, r, teacher)
 }
 
 func (h *TeacherHandler) DeleteTeacher(w http.ResponseWriter, r *http.Request) {
