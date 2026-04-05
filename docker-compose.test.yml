@@ -1,0 +1,11 @@
+services:
+  app:
+    ports:
+      - '8081:8080'
+    env_file:
+      - .env.test
+
+  postgres:
+    ports:
+      - '5433:5432'
+    # No named volume — ephemeral, clean slate on every run

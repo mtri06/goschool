@@ -1,0 +1,20 @@
+services:
+  app:
+    ports:
+      - '8080:8080'
+    env_file:
+      - .env.prod
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 256M
+
+  postgres:
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  postgres_prod_data:

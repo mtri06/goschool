@@ -1,0 +1,15 @@
+services:
+  app:
+    ports:
+      - '8080:8080'
+    env_file:
+      - .env.dev
+
+  postgres:
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_dev_data:
