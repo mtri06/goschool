@@ -8,7 +8,6 @@ import (
 	"goschool/internal/env"
 	"goschool/internal/repository"
 	"goschool/internal/services"
-	"goschool/pkg/httpx"
 	"goschool/pkg/logger"
 	"net/http"
 	"time"
@@ -59,21 +58,13 @@ func NewServer(dbURL string) http.Handler {
 	userSvc.SeedAdminUser()
 
 	// Init handlers
-	teacherHandler := handler.NewTeacherHandler(teacherSvc, serviceErrMapping)
-	authHandler := handler.NewAuthHandler(authSvc, serviceErrMapping)
+	errMap := handler.NewErrorMap()
+	teacherHandler := handler.NewTeacherHandler(teacherSvc, errMap)
+	authHandler := handler.NewAuthHandler(authSvc, errMap)
 
 	// Mount routes
 	routes.MountTeacherRoutes(r, teacherHandler)
 	routes.MountAuthRoutes(r, authHandler)
 
 	return r
-}
-
-var serviceErrMapping = map[error]httpx.APIError{
-	httpx.ErrInvalidBody:           httpx.ErrBadRequest,
-	httpx.ErrInvalidQuery:          httpx.ErrBadRequest,
-	services.ErrValidationFailed:   httpx.ErrBadRequest,
-	services.ErrNotFound:           httpx.ErrNotFound,
-	services.ErrInvalidCredentials: httpx.ErrUnauthorized,
-	services.ErrUnauthorized:       httpx.ErrUnauthorized,
 }
