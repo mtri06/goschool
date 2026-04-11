@@ -2,7 +2,7 @@ run:
 	go run cmd/api/main.go
 
 dev:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.dev up --build
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.dev up --build --attach app
 
 prod:
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up --build -d

@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -120,16 +121,69 @@ func validUpdateTeacher() *model.UpdateTeacher {
 	}
 }
 
-func newTeacherSvc(userRepo TeacherSvcUserRepo, teacherRepo UserSvcTeacherRepo, subjectRepo TeacherSvcSubjectRepo, userSvc TeacherSvcUserSvc) *TeacherService {
-	return NewTeacherService(userRepo, teacherRepo, subjectRepo, userSvc)
-}
-
 // ---------------------------------------------------------------------------
 // TestCreateTeacher
 // ---------------------------------------------------------------------------
 
+func TestTeacherService_CreateTeacher_MustCallValidateUser(t *testing.T) {
+	called := false
+	userSvc := &mockUserSvcForTeacher{
+		validateUserFn: func(u *model.User) error {
+			called = true
+			return nil
+		},
+	}
+
+	subjectRepo := &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return true, nil }}
+
+	svc := TeacherService{
+		userRepo:    &mockTeacherUserRepo{},
+		teacherRepo: &mockTeacherRepo{},
+		subjectRepo: subjectRepo,
+		userSvc:     userSvc,
+	}
+
+	err := svc.CreateTeacher(validNewTeacher())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !called {
+		t.Error("expected validateUser to be called, but it was not")
+	}
+}
+
+func TestTeacherService_PasswordMustBeHashedOnCreate(t *testing.T) {
+	var capturedTeacher *model.NewTeacher
+	teacherRepo := &mockTeacherRepo{
+		createFn: func(t *model.NewTeacher) error {
+			capturedTeacher = t
+			return nil
+		},
+	}
+
+	subjectRepo := &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return true, nil }}
+
+	svc := TeacherService{
+		userRepo:    &mockTeacherUserRepo{},
+		teacherRepo: teacherRepo,
+		subjectRepo: subjectRepo,
+		userSvc:     &mockUserSvcForTeacher{},
+	}
+
+	err := svc.CreateTeacher(validNewTeacher())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if capturedTeacher == nil {
+		t.Fatal("expected CreateTeacher to be not nil, but it was not")
+	}
+	if capturedTeacher.Password == validNewTeacher().Password {
+		t.Error("expected password to be hashed, but it was not")
+	}
+}
+
 func TestTeacherService_CreateTeacher(t *testing.T) {
-	anyErr := errors.New("db error")
+	dbErr := errors.New("db error")
 
 	tests := []struct {
 		name        string
@@ -141,55 +195,96 @@ func TestTeacherService_CreateTeacher(t *testing.T) {
 		wantErr     error
 	}{
 		{
-			name:        "success",
-			input:       validNewTeacher(),
-			userRepo:    &mockTeacherUserRepo{},
-			teacherRepo: &mockTeacherRepo{},
-			subjectRepo: &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return true, nil }},
-			userSvc:     &mockUserSvcForTeacher{},
-			wantErr:     nil,
+			name:  "valid input",
+			input: validNewTeacher(),
 		},
 		{
-			name:  "invalid working status",
-			input: func() *model.NewTeacher { t := validNewTeacher(); t.WorkingStatus = "unknown"; return t }(),
-			userRepo:    &mockTeacherUserRepo{},
-			teacherRepo: &mockTeacherRepo{},
-			subjectRepo: &mockSubjectRepo{},
-			userSvc:     &mockUserSvcForTeacher{},
-			wantErr:     ErrValidationFailed,
+			name: "working status on_leave",
+			input: func() *model.NewTeacher {
+				t := validNewTeacher()
+				t.WorkingStatus = constant.WorkingStatusOnLeave
+				return t
+			}(),
+		},
+		{
+			name: "working status active",
+			input: func() *model.NewTeacher {
+				t := validNewTeacher()
+				t.WorkingStatus = constant.WorkingStatusActive
+				return t
+			}(),
+		},
+		{
+			name: "working status inactive",
+			input: func() *model.NewTeacher {
+				t := validNewTeacher()
+				t.WorkingStatus = constant.WorkingStatusInactive
+				return t
+			}(),
+		},
+		{
+			name: "invalid working status",
+			input: func() *model.NewTeacher {
+				t := validNewTeacher()
+				t.WorkingStatus = "abc123@"
+				return t
+			}(),
+			wantErr: ErrValidationFailed,
+		},
+		{
+			name:    "invalid working status",
+			input:   func() *model.NewTeacher { t := validNewTeacher(); t.WorkingStatus = "unknown"; return t }(),
+			wantErr: ErrValidationFailed,
+		},
+		{
+			name: "female gender",
+			input: func() *model.NewTeacher {
+				t := validNewTeacher()
+				t.Gender = constant.GenderFemale
+				return t
+			}(),
 		},
 		{
 			name:        "subject not found",
 			input:       validNewTeacher(),
-			userRepo:    &mockTeacherUserRepo{},
-			teacherRepo: &mockTeacherRepo{},
 			subjectRepo: &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return false, nil }},
-			userSvc:     &mockUserSvcForTeacher{},
 			wantErr:     ErrNotFound,
 		},
 		{
-			name:        "subject repo error",
+			name:        "subject repo returns db error",
 			input:       validNewTeacher(),
-			userRepo:    &mockTeacherUserRepo{},
-			teacherRepo: &mockTeacherRepo{},
-			subjectRepo: &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return false, anyErr }},
-			userSvc:     &mockUserSvcForTeacher{},
-			wantErr:     anyErr,
+			subjectRepo: &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return false, dbErr }},
+			wantErr:     dbErr,
 		},
 		{
-			name:        "validateUser returns error",
-			input:       validNewTeacher(),
-			userRepo:    &mockTeacherUserRepo{},
-			teacherRepo: &mockTeacherRepo{},
-			subjectRepo: &mockSubjectRepo{},
-			userSvc:     &mockUserSvcForTeacher{validateUserFn: func(u *model.User) error { return ErrValidationFailed }},
-			wantErr:     ErrValidationFailed,
+			name:    "validateUser returns error",
+			input:   validNewTeacher(),
+			userSvc: &mockUserSvcForTeacher{validateUserFn: func(u *model.User) error { return ErrValidationFailed }},
+			wantErr: ErrValidationFailed,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := newTeacherSvc(tc.userRepo, tc.teacherRepo, tc.subjectRepo, tc.userSvc)
+			if tc.subjectRepo == nil {
+				// Subject exists by default
+				tc.subjectRepo = &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return true, nil }}
+			}
+			if tc.userRepo == nil {
+				tc.userRepo = &mockTeacherUserRepo{}
+			}
+			if tc.teacherRepo == nil {
+				tc.teacherRepo = &mockTeacherRepo{}
+			}
+			if tc.userSvc == nil {
+				tc.userSvc = &mockUserSvcForTeacher{}
+			}
+			svc := TeacherService{
+				userRepo:    tc.userRepo,
+				teacherRepo: tc.teacherRepo,
+				subjectRepo: tc.subjectRepo,
+				userSvc:     tc.userSvc,
+			}
 			err := svc.CreateTeacher(tc.input)
 			if !errors.Is(err, tc.wantErr) {
 				t.Errorf("got err %v, want %v", err, tc.wantErr)
@@ -203,49 +298,86 @@ func TestTeacherService_CreateTeacher(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestTeacherService_GetTeacherByID(t *testing.T) {
-	teacher := &model.TeacherDetails{ID: 1, Name: "John Doe"}
-	anyErr := errors.New("db error")
+	teacher := &model.TeacherDetails{ID: 1445, Name: "John Doe"}
+	dbErr := errors.New("db error")
 
 	tests := []struct {
 		name        string
 		id          int64
 		teacherRepo *mockTeacherRepo
 		wantErr     error
-		wantNil     bool
+		wantTeacher *model.TeacherDetails
 	}{
 		{
-			name:        "success",
-			id:          1,
-			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int64) (*model.TeacherDetails, error) { return teacher, nil }},
+			name: "success",
+			id:   1445,
+			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int64) (*model.TeacherDetails, error) {
+				return teacher, nil
+			}},
 			wantErr:     nil,
+			wantTeacher: teacher,
 		},
 		{
-			name:        "teacher not found",
-			id:          99,
-			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int64) (*model.TeacherDetails, error) { return nil, nil }},
+			name: "teacher not found",
+			id:   99,
+			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int64) (*model.TeacherDetails, error) {
+				return nil, nil
+			}},
 			wantErr:     ErrNotFound,
-			wantNil:     true,
+			wantTeacher: nil,
 		},
 		{
-			name:        "repo error",
-			id:          1,
-			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int64) (*model.TeacherDetails, error) { return nil, anyErr }},
-			wantErr:     anyErr,
-			wantNil:     true,
+			name: "db error",
+			id:   1,
+			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int64) (*model.TeacherDetails, error) {
+				return nil, dbErr
+			}},
+			wantErr:     dbErr,
+			wantTeacher: nil,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := newTeacherSvc(&mockTeacherUserRepo{}, tc.teacherRepo, &mockSubjectRepo{}, &mockUserSvcForTeacher{})
+			svc := TeacherService{
+				userRepo:    &mockTeacherUserRepo{},
+				teacherRepo: tc.teacherRepo,
+				subjectRepo: &mockSubjectRepo{},
+				userSvc:     &mockUserSvcForTeacher{},
+			}
 			got, err := svc.GetTeacherByID(tc.id)
 			if !errors.Is(err, tc.wantErr) {
 				t.Errorf("got err %v, want %v", err, tc.wantErr)
 			}
-			if tc.wantNil && got != nil {
-				t.Errorf("expected nil result, got %+v", got)
+			if tc.wantTeacher != nil && !reflect.DeepEqual(got, tc.wantTeacher) {
+				t.Errorf("expected %+v, got %+v", tc.wantTeacher, got)
 			}
 		})
+	}
+}
+
+func TestTeacherService_GetTeacherByID_MustPassCorrectID(t *testing.T) {
+	passedIDs := []int64{789, 456, 123, 34, 890}
+
+	for _, id := range passedIDs {
+		var capturedID *int64
+		teacher := &model.TeacherDetails{ID: id, Name: "Jane Doe"}
+		svc := TeacherService{
+			userRepo: &mockTeacherUserRepo{},
+			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int64) (*model.TeacherDetails, error) {
+				capturedID = &id
+				return teacher, nil
+			}},
+			subjectRepo: &mockSubjectRepo{},
+			userSvc:     &mockUserSvcForTeacher{},
+		}
+		_, err := svc.GetTeacherByID(id)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if capturedID == nil || *capturedID != id {
+			t.Fatalf("expected GetTeacherByID to be called with ID %d, got %v", id, capturedID)
+		}
 	}
 }
 
@@ -254,7 +386,7 @@ func TestTeacherService_GetTeacherByID(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestTeacherService_DeleteTeacher(t *testing.T) {
-	anyErr := errors.New("db error")
+	dbErr := errors.New("db error")
 
 	tests := []struct {
 		name        string
@@ -264,7 +396,7 @@ func TestTeacherService_DeleteTeacher(t *testing.T) {
 	}{
 		{
 			name: "success",
-			id:   1,
+			id:   33,
 			teacherRepo: &mockTeacherRepo{
 				teacherExistsFn: func(id int64) (bool, error) { return true, nil },
 				deleteFn:        func(id int64) error { return nil },
@@ -283,15 +415,32 @@ func TestTeacherService_DeleteTeacher(t *testing.T) {
 			name: "exists check error",
 			id:   1,
 			teacherRepo: &mockTeacherRepo{
-				teacherExistsFn: func(id int64) (bool, error) { return false, anyErr },
+				teacherExistsFn: func(id int64) (bool, error) { return false, dbErr },
 			},
-			wantErr: anyErr,
+			wantErr: dbErr,
+		},
+		{
+			name: "delete error",
+			id:   1,
+			teacherRepo: &mockTeacherRepo{
+				teacherExistsFn: func(id int64) (bool, error) { return true, nil },
+				deleteFn:        func(id int64) error { return dbErr },
+			},
+			wantErr: dbErr,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := newTeacherSvc(&mockTeacherUserRepo{}, tc.teacherRepo, &mockSubjectRepo{}, &mockUserSvcForTeacher{})
+			if tc.teacherRepo == nil {
+				tc.teacherRepo = &mockTeacherRepo{}
+			}
+			svc := TeacherService{
+				userRepo:    &mockTeacherUserRepo{},
+				teacherRepo: tc.teacherRepo,
+				subjectRepo: &mockSubjectRepo{},
+				userSvc:     &mockUserSvcForTeacher{},
+			}
 			err := svc.DeleteTeacher(tc.id)
 			if !errors.Is(err, tc.wantErr) {
 				t.Errorf("got err %v, want %v", err, tc.wantErr)
@@ -300,12 +449,48 @@ func TestTeacherService_DeleteTeacher(t *testing.T) {
 	}
 }
 
+func TestTeacherService_DeleteTeacher_MustPassCorrectID(t *testing.T) {
+	passedIDs := []int64{11, 595, 34596, 2, 1348}
+
+	for _, id := range passedIDs {
+		var existCapturedID *int64
+		var deleteCapturedID *int64
+
+		svc := TeacherService{
+			userRepo: &mockTeacherUserRepo{},
+			teacherRepo: &mockTeacherRepo{
+				teacherExistsFn: func(id int64) (bool, error) {
+					existCapturedID = &id
+					return true, nil
+				},
+				deleteFn: func(id int64) error {
+					deleteCapturedID = &id
+					return nil
+				},
+			},
+			subjectRepo: &mockSubjectRepo{},
+			userSvc:     &mockUserSvcForTeacher{},
+		}
+
+		err := svc.DeleteTeacher(id)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if existCapturedID == nil || *existCapturedID != id {
+			t.Fatalf("expected teacherExistsFn to be called with ID %d, got %v", id, existCapturedID)
+		}
+		if deleteCapturedID == nil || *deleteCapturedID != id {
+			t.Fatalf("expected deleteFn to be called with ID %d, got %v", id, deleteCapturedID)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // TestUpdateTeacher
 // ---------------------------------------------------------------------------
 
 func TestTeacherService_UpdateTeacher(t *testing.T) {
-	anyErr := errors.New("db error")
+	dbErr := errors.New("db error")
 	email := "new@example.com"
 
 	tests := []struct {
@@ -321,30 +506,63 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 			name:  "success",
 			id:    1,
 			input: validUpdateTeacher(),
-			teacherRepo: &mockTeacherRepo{
-				teacherExistsFn: func(id int64) (bool, error) { return true, nil },
-			},
-			subjectRepo: &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return true, nil }},
-			userRepo:    &mockTeacherUserRepo{},
-			wantErr:     nil,
 		},
 		{
-			name:        "invalid gender",
-			id:          1,
-			input:       func() *model.UpdateTeacher { u := validUpdateTeacher(); u.Gender = "alien"; return u }(),
-			teacherRepo: &mockTeacherRepo{},
-			subjectRepo: &mockSubjectRepo{},
-			userRepo:    &mockTeacherUserRepo{},
-			wantErr:     ErrValidationFailed,
+			name: "male gender",
+			id:   1,
+			input: func() *model.UpdateTeacher {
+				u := validUpdateTeacher()
+				u.Gender = constant.GenderMale
+				return u
+			}(),
 		},
 		{
-			name:        "invalid working status",
-			id:          1,
-			input:       func() *model.UpdateTeacher { u := validUpdateTeacher(); u.WorkingStatus = "unknown"; return u }(),
-			teacherRepo: &mockTeacherRepo{},
-			subjectRepo: &mockSubjectRepo{},
-			userRepo:    &mockTeacherUserRepo{},
-			wantErr:     ErrValidationFailed,
+			name: "female gender",
+			id:   1,
+			input: func() *model.UpdateTeacher {
+				u := validUpdateTeacher()
+				u.Gender = constant.GenderFemale
+				return u
+			}(),
+		},
+		{
+			name:    "invalid gender",
+			id:      1,
+			input:   func() *model.UpdateTeacher { u := validUpdateTeacher(); u.Gender = "alien"; return u }(),
+			wantErr: ErrValidationFailed,
+		},
+		{
+			name: "working status on_leave",
+			id:   1,
+			input: func() *model.UpdateTeacher {
+				u := validUpdateTeacher()
+				u.WorkingStatus = constant.WorkingStatusOnLeave
+				return u
+			}(),
+		},
+		{
+			name: "working status active",
+			id:   1,
+			input: func() *model.UpdateTeacher {
+				u := validUpdateTeacher()
+				u.WorkingStatus = constant.WorkingStatusActive
+				return u
+			}(),
+		},
+		{
+			name: "working status inactive",
+			id:   1,
+			input: func() *model.UpdateTeacher {
+				u := validUpdateTeacher()
+				u.WorkingStatus = constant.WorkingStatusInactive
+				return u
+			}(),
+		},
+		{
+			name:    "invalid working status",
+			id:      1,
+			input:   func() *model.UpdateTeacher { u := validUpdateTeacher(); u.WorkingStatus = "unknown"; return u }(),
+			wantErr: ErrValidationFailed,
 		},
 		{
 			name:  "teacher not found",
@@ -353,52 +571,116 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 			teacherRepo: &mockTeacherRepo{
 				teacherExistsFn: func(id int64) (bool, error) { return false, nil },
 			},
-			subjectRepo: &mockSubjectRepo{},
-			userRepo:    &mockTeacherUserRepo{},
-			wantErr:     ErrNotFound,
+			wantErr: ErrNotFound,
 		},
 		{
-			name:  "subject not found",
+			name:  "teacher exists check error",
 			id:    1,
 			input: validUpdateTeacher(),
 			teacherRepo: &mockTeacherRepo{
-				teacherExistsFn: func(id int64) (bool, error) { return true, nil },
+				teacherExistsFn: func(id int64) (bool, error) { return false, dbErr },
 			},
+			wantErr: dbErr,
+		},
+		{
+			name:        "subject not found",
+			id:          1,
+			input:       validUpdateTeacher(),
 			subjectRepo: &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return false, nil }},
-			userRepo:    &mockTeacherUserRepo{},
 			wantErr:     ErrNotFound,
+		},
+		{
+			name:        "subject repo error",
+			id:          1,
+			input:       validUpdateTeacher(),
+			subjectRepo: &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return false, dbErr }},
+			wantErr:     dbErr,
 		},
 		{
 			name:  "email already exists",
 			id:    1,
 			input: func() *model.UpdateTeacher { u := validUpdateTeacher(); u.Email = &email; return u }(),
-			teacherRepo: &mockTeacherRepo{
-				teacherExistsFn: func(id int64) (bool, error) { return true, nil },
+			userRepo: &mockTeacherUserRepo{
+				emailExistsFn: func(email string) (bool, error) { return true, nil },
 			},
-			subjectRepo: &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return true, nil }},
-			userRepo:    &mockTeacherUserRepo{emailExistsFn: func(email string) (bool, error) { return true, nil }},
-			wantErr:     ErrValidationFailed,
+			wantErr: ErrValidationFailed,
 		},
 		{
-			name:  "exists check db error",
+			name:  "email check error",
 			id:    1,
-			input: validUpdateTeacher(),
-			teacherRepo: &mockTeacherRepo{
-				teacherExistsFn: func(id int64) (bool, error) { return false, anyErr },
+			input: func() *model.UpdateTeacher { u := validUpdateTeacher(); u.Email = &email; return u }(),
+			userRepo: &mockTeacherUserRepo{
+				emailExistsFn: func(email string) (bool, error) { return false, dbErr },
 			},
-			subjectRepo: &mockSubjectRepo{},
-			userRepo:    &mockTeacherUserRepo{},
-			wantErr:     anyErr,
+			wantErr: dbErr,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := newTeacherSvc(tc.userRepo, tc.teacherRepo, tc.subjectRepo, &mockUserSvcForTeacher{})
+			if tc.userRepo == nil {
+				tc.userRepo = &mockTeacherUserRepo{
+					emailExistsFn: func(email string) (bool, error) { return false, nil },
+				}
+			}
+			if tc.teacherRepo == nil {
+				tc.teacherRepo = &mockTeacherRepo{
+					teacherExistsFn: func(id int64) (bool, error) { return true, nil },
+				}
+			}
+			if tc.subjectRepo == nil {
+				tc.subjectRepo = &mockSubjectRepo{
+					existsFn: func(id int64) (bool, error) { return true, nil },
+				}
+			}
+			svc := TeacherService{
+				userRepo:    tc.userRepo,
+				teacherRepo: tc.teacherRepo,
+				subjectRepo: tc.subjectRepo,
+				userSvc:     &mockUserSvcForTeacher{},
+			}
 			err := svc.UpdateTeacher(tc.id, tc.input)
 			if !errors.Is(err, tc.wantErr) {
 				t.Errorf("got err %v, want %v", err, tc.wantErr)
 			}
 		})
+	}
+}
+
+func TestTeacherService_UpdateTeacher_MustPassCorrectID(t *testing.T) {
+	passedIDs := []int64{663, 345, 1334, 5777, 93843}
+
+	for _, id := range passedIDs {
+		var teacherExistsCapturedID *int64
+		var updateCapturedID *int64
+
+		svc := TeacherService{
+			userRepo: &mockTeacherUserRepo{},
+			teacherRepo: &mockTeacherRepo{
+				teacherExistsFn: func(id int64) (bool, error) {
+					teacherExistsCapturedID = &id
+					return true, nil
+				},
+				updateFn: func(id int64, u *model.UpdateTeacher) error {
+					updateCapturedID = &id
+					return nil
+				},
+			},
+			subjectRepo: &mockSubjectRepo{
+				existsFn: func(id int64) (bool, error) { return true, nil },
+			},
+			userSvc: &mockUserSvcForTeacher{},
+		}
+
+		err := svc.UpdateTeacher(id, validUpdateTeacher())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if teacherExistsCapturedID == nil || *teacherExistsCapturedID != id {
+			t.Errorf("expected teacherExistsFn to be called with ID %d, got %v", id, teacherExistsCapturedID)
+		}
+		if updateCapturedID == nil || *updateCapturedID != id {
+			t.Errorf("expected updateFn to be called with ID %d, got %v", id, updateCapturedID)
+		}
 	}
 }

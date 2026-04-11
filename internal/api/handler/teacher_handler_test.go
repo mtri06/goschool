@@ -7,10 +7,12 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
 	"goschool/internal/api/handler"
+	"goschool/internal/services"
 	"goschool/pkg/httpx"
 	"goschool/pkg/model"
 
@@ -64,13 +66,8 @@ func (m *mockTeacherSvc) DeleteTeacher(id int64) error {
 // Helpers
 // ---------------------------------------------------------------------------
 
-var testErrMap = httpx.APIErrorMap{
-	httpx.ErrInvalidBody:  httpx.ErrBadRequest,
-	httpx.ErrInvalidQuery: httpx.ErrBadRequest,
-}
-
 func newHandler(svc *mockTeacherSvc) *handler.TeacherHandler {
-	return handler.NewTeacherHandler(svc, testErrMap)
+	return handler.NewTeacherHandler(svc, handler.NewErrorMap())
 }
 
 func withChiID(r *http.Request, id string) *http.Request {
@@ -79,11 +76,25 @@ func withChiID(r *http.Request, id string) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 }
 
+func is500Error(rr *httptest.ResponseRecorder) bool {
+	var payload httpx.APIError
+	if err := json.NewDecoder(rr.Body).Decode(&payload); err != nil {
+		return false
+	}
+	if payload.Status != http.StatusInternalServerError {
+		return false
+	}
+	if !reflect.DeepEqual(payload, httpx.ErrUnknownInternal) {
+		return false
+	}
+	return rr.Code == http.StatusInternalServerError
+}
+
 // ---------------------------------------------------------------------------
 // GetTeacherByID
 // ---------------------------------------------------------------------------
 
-func TestGetTeacherByID_InvalidID(t *testing.T) {
+func TestTeacherHandler_GetTeacherByID_InvalidID(t *testing.T) {
 	h := newHandler(&mockTeacherSvc{})
 	req := httptest.NewRequest(http.MethodGet, "/teachers/abc", nil)
 	req = withChiID(req, "abc")
@@ -96,7 +107,7 @@ func TestGetTeacherByID_InvalidID(t *testing.T) {
 	}
 }
 
-func TestGetTeacherByID_NotFound(t *testing.T) {
+func TestTeacherHandler_GetTeacherByID_NotFound(t *testing.T) {
 	svc := &mockTeacherSvc{
 		getByIDFn: func(id int64) (*model.TeacherDetails, error) {
 			return nil, httpx.ErrNotFound
@@ -114,7 +125,7 @@ func TestGetTeacherByID_NotFound(t *testing.T) {
 	}
 }
 
-func TestGetTeacherByID_Success(t *testing.T) {
+func TestTeacherHandler_GetTeacherByID_Success(t *testing.T) {
 	teacher := &model.TeacherDetails{ID: 1, Name: "John Doe"}
 	svc := &mockTeacherSvc{
 		getByIDFn: func(id int64) (*model.TeacherDetails, error) { return teacher, nil },
@@ -133,8 +144,49 @@ func TestGetTeacherByID_Success(t *testing.T) {
 	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if resp.Name != "John Doe" {
-		t.Errorf("expected name John Doe, got %s", resp.Name)
+	if resp.ID != 1 || resp.Name != "John Doe" {
+		t.Errorf("expected ID 1 and name John Doe, got ID %d and name %s", resp.ID, resp.Name)
+	}
+}
+
+func TestTeacherHandler_GetTeacherByID_ServiceUnknownError(t *testing.T) {
+	svc := &mockTeacherSvc{
+		getByIDFn: func(id int64) (*model.TeacherDetails, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	h := newHandler(svc)
+	req := httptest.NewRequest(http.MethodGet, "/teachers/1", nil)
+	req = withChiID(req, "1")
+	rr := httptest.NewRecorder()
+
+	h.GetTeacherByID(rr, req)
+
+	if !is500Error(rr) {
+		t.Errorf("expected 500 with unknown internal error payload, got %d", rr.Code)
+	}
+}
+
+func TestTeacherHandler_GetTeacherByID_MustPassCorrectIDToService(t *testing.T) {
+	var capturedID *int64
+	svc := &mockTeacherSvc{
+		getByIDFn: func(id int64) (*model.TeacherDetails, error) {
+			capturedID = &id
+			return &model.TeacherDetails{ID: id, Name: "John Doe"}, nil
+		},
+	}
+	h := newHandler(svc)
+	req := httptest.NewRequest(http.MethodGet, "/teachers/42", nil)
+	req = withChiID(req, "42")
+	rr := httptest.NewRecorder()
+
+	h.GetTeacherByID(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+	if capturedID == nil || *capturedID != 42 {
+		t.Errorf("expected GetTeacherByID to be called with ID 42, got %v", capturedID)
 	}
 }
 
@@ -142,7 +194,7 @@ func TestGetTeacherByID_Success(t *testing.T) {
 // DeleteTeacher
 // ---------------------------------------------------------------------------
 
-func TestDeleteTeacher_InvalidID(t *testing.T) {
+func TestTeacherHandler_DeleteTeacher_InvalidID(t *testing.T) {
 	h := newHandler(&mockTeacherSvc{})
 	req := httptest.NewRequest(http.MethodDelete, "/teachers/xyz", nil)
 	req = withChiID(req, "xyz")
@@ -155,7 +207,7 @@ func TestDeleteTeacher_InvalidID(t *testing.T) {
 	}
 }
 
-func TestDeleteTeacher_Success(t *testing.T) {
+func TestTeacherHandler_DeleteTeacher_Success(t *testing.T) {
 	h := newHandler(&mockTeacherSvc{})
 	req := httptest.NewRequest(http.MethodDelete, "/teachers/1", nil)
 	req = withChiID(req, "1")
@@ -168,11 +220,83 @@ func TestDeleteTeacher_Success(t *testing.T) {
 	}
 }
 
+func TestTeacherHandler_DeleteTeacher_ServiceUnknownError(t *testing.T) {
+	svc := &mockTeacherSvc{
+		deleteFn: func(id int64) error {
+			return errors.New("unknown error")
+		},
+	}
+	h := newHandler(svc)
+	req := httptest.NewRequest(http.MethodDelete, "/teachers/1", nil)
+	req = withChiID(req, "1")
+	rr := httptest.NewRecorder()
+
+	h.DeleteTeacher(rr, req)
+
+	if !is500Error(rr) {
+		t.Errorf("expected 500 with unknown internal error payload, got %d", rr.Code)
+	}
+}
+
+func TestTeacherHandler_DeleteTeacher_MustPassCorrectIDToService(t *testing.T) {
+	var capturedID *int64
+	svc := &mockTeacherSvc{
+		deleteFn: func(id int64) error {
+			capturedID = &id
+			return nil
+		},
+	}
+	h := newHandler(svc)
+	req := httptest.NewRequest(http.MethodDelete, "/teachers/99", nil)
+	req = withChiID(req, "99")
+	rr := httptest.NewRecorder()
+
+	h.DeleteTeacher(rr, req)
+
+	if rr.Code != http.StatusNoContent {
+		t.Errorf("expected 204, got %d", rr.Code)
+	}
+	if capturedID == nil || *capturedID != 99 {
+		t.Errorf("expected DeleteTeacher to be called with ID 99, got %v", capturedID)
+	}
+}
+
+func TestTeacherHandler_DeleteTeacher_NotFound(t *testing.T) {
+	svc := &mockTeacherSvc{
+		deleteFn: func(id int64) error {
+			return services.ErrNotFound
+		},
+	}
+	h := newHandler(svc)
+	req := httptest.NewRequest(http.MethodDelete, "/teachers/123", nil)
+	req = withChiID(req, "123")
+	rr := httptest.NewRecorder()
+
+	h.DeleteTeacher(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // CreateTeacher
 // ---------------------------------------------------------------------------
 
-func TestCreateTeacher_InvalidBody(t *testing.T) {
+func newValidNewTeacher() *model.NewTeacher {
+	return &model.NewTeacher{
+		Username:      "jdoe",
+		Password:      "Password1!",
+		Name:          "John Doe",
+		DateOfBirth:   time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
+		Gender:        "male",
+		SubjectID:     1,
+		HireDate:      time.Now(),
+		WorkingStatus: "active",
+	}
+}
+
+func TestTeacherHandler_CreateTeacher_InvalidBody(t *testing.T) {
 	h := newHandler(&mockTeacherSvc{})
 	req := httptest.NewRequest(http.MethodPost, "/teachers", bytes.NewBufferString(`{invalid json`))
 	req.Header.Set("Content-Type", "application/json")
@@ -185,17 +309,8 @@ func TestCreateTeacher_InvalidBody(t *testing.T) {
 	}
 }
 
-func TestCreateTeacher_Success(t *testing.T) {
-	body := model.NewTeacher{
-		Username:      "jdoe",
-		Password:      "Password1!",
-		Name:          "John Doe",
-		DateOfBirth:   time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
-		Gender:        "male",
-		SubjectID:     1,
-		HireDate:      time.Now(),
-		WorkingStatus: "active",
-	}
+func TestTeacherHandler_CreateTeacher_Success(t *testing.T) {
+	body := newValidNewTeacher()
 	b, _ := json.Marshal(body)
 
 	h := newHandler(&mockTeacherSvc{})
@@ -210,11 +325,65 @@ func TestCreateTeacher_Success(t *testing.T) {
 	}
 }
 
+func TestTeacherHandler_CreateTeacher_ServiceUnknownError(t *testing.T) {
+	svc := &mockTeacherSvc{
+		createFn: func(t *model.NewTeacher) error {
+			return errors.New("db error")
+		},
+	}
+	h := newHandler(svc)
+	body := newValidNewTeacher()
+	b, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/teachers", bytes.NewBuffer(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	h.CreateTeacher(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+func TestTeacherHandler_CreateTeacher_MissingRequiredField(t *testing.T) {
+	h := newHandler(&mockTeacherSvc{})
+	requiredFields := []string{
+		"username", "password", "name", "dateOfBirth", "gender", "subjectID",
+		"hireDate", "workingStatus",
+	}
+
+	for _, field := range requiredFields {
+		t.Run("missing "+field, func(t *testing.T) {
+			body := map[string]any{
+				"username":      "jdoe",
+				"password":      "Password1!",
+				"name":          "John Doe",
+				"dateOfBirth":   "1990-01-01T00:00:00Z",
+				"gender":        "male",
+				"subjectID":     1,
+				"hireDate":      time.Now().Format(time.RFC3339),
+				"workingStatus": "active",
+			}
+			delete(body, field)
+			b, _ := json.Marshal(body)
+
+			req := httptest.NewRequest(http.MethodPost, "/teachers", bytes.NewBuffer(b))
+			req.Header.Set("Content-Type", "application/json")
+			rr := httptest.NewRecorder()
+
+			h.CreateTeacher(rr, req)
+			if rr.Code != http.StatusBadRequest {
+				t.Errorf("expected 400 for missing field %s, got %d", field, rr.Code)
+			}
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // GetTeachers
 // ---------------------------------------------------------------------------
 
-func TestGetTeachers_Success(t *testing.T) {
+func TestTeacherHandler_GetTeachers_Success(t *testing.T) {
 	svc := &mockTeacherSvc{
 		listFn: func(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error) {
 			return []model.TeacherDetails{{ID: 1, Name: "Alice"}}, 1, nil
@@ -238,7 +407,7 @@ func TestGetTeachers_Success(t *testing.T) {
 	}
 }
 
-func TestGetTeachers_ServiceError(t *testing.T) {
+func TestTeacherHandler_GetTeachers_ServiceError(t *testing.T) {
 	svc := &mockTeacherSvc{
 		listFn: func(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error) {
 			return nil, 0, errors.New("db error")
