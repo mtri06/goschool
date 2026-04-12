@@ -1,6 +1,9 @@
 package constant
 
 const (
+	DefaultPage     = 1
+	DefaultPageSize = 20
+
 	RoleAdmin   = "admin"
 	RoleTeacher = "teacher"
 	RoleStudent = "student"
@@ -23,4 +26,7 @@ const (
 
 	CookieAccessToken  = "access_token"
 	CookieRefreshToken = "refresh_token"
+
+	SubjectStatusActive   = "active"
+	SubjectStatusInactive = "inactive"
 )

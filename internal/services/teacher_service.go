@@ -18,7 +18,7 @@ type UserSvcTeacherRepo interface {
 	TeacherExists(id int64) (bool, error)
 	UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error
 	DeleteTeacher(teacherID int64) error
-	ListTeachers(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error)
+	ListTeachers(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error)
 }
 
 type TeacherSvcSubjectRepo interface {
@@ -92,14 +92,14 @@ func (s *TeacherService) GetTeacherByID(teacherID int64) (*model.TeacherDetails,
 	return teacher, nil
 }
 
-func (s *TeacherService) ListTeachers(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error) {
+func (s *TeacherService) ListTeachers(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error) {
 	if page < 1 {
-		page = 1
+		page = constant.DefaultPage
 	}
 	if pageSize < 1 || pageSize > 100 {
-		pageSize = 20
+		pageSize = constant.DefaultPageSize
 	}
-	return s.teacherRepo.ListTeachers(page, pageSize, name, email)
+	return s.teacherRepo.ListTeachers(page, pageSize, name, email, workingStatus)
 }
 
 func (s *TeacherService) UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error {

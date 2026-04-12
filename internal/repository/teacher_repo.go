@@ -58,8 +58,8 @@ func (r *TeacherRepository) CreateTeacher(newTeacher *model.NewTeacher) error {
 	return nil
 }
 
-// ListTeachers returns a paginated list of teachers and the total count, with optional filters by name and email
-func (r *TeacherRepository) ListTeachers(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error) {
+// ListTeachers returns a paginated list of teachers and the total count, with optional filters by name, email, and working status
+func (r *TeacherRepository) ListTeachers(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error) {
 	offset := (page - 1) * pageSize
 
 	var conditions []string
@@ -73,6 +73,10 @@ func (r *TeacherRepository) ListTeachers(page, pageSize int, name, email string)
 		email = strings.ToLower(email)
 		args = append(args, "%"+email+"%")
 		conditions = append(conditions, fmt.Sprintf("u.email LIKE $%d", len(args)))
+	}
+	if workingStatus != "" {
+		args = append(args, workingStatus)
+		conditions = append(conditions, fmt.Sprintf("t.working_status = $%d", len(args)))
 	}
 	where := "WHERE " + strings.Join(conditions, " AND ")
 

@@ -27,7 +27,7 @@ type mockTeacherSvc struct {
 	createFn  func(t *model.NewTeacher) error
 	getByIDFn func(id int64) (*model.TeacherDetails, error)
 	updateFn  func(id int64, u *model.UpdateTeacher) error
-	listFn    func(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error)
+	listFn    func(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error)
 	deleteFn  func(id int64) error
 }
 
@@ -49,9 +49,9 @@ func (m *mockTeacherSvc) UpdateTeacher(id int64, u *model.UpdateTeacher) error {
 	}
 	return nil
 }
-func (m *mockTeacherSvc) ListTeachers(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error) {
+func (m *mockTeacherSvc) ListTeachers(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error) {
 	if m.listFn != nil {
-		return m.listFn(page, pageSize, name, email)
+		return m.listFn(page, pageSize, name, email, workingStatus)
 	}
 	return []model.TeacherDetails{}, 0, nil
 }
@@ -385,7 +385,7 @@ func TestTeacherHandler_CreateTeacher_MissingRequiredField(t *testing.T) {
 
 func TestTeacherHandler_GetTeachers_Success(t *testing.T) {
 	svc := &mockTeacherSvc{
-		listFn: func(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error) {
+		listFn: func(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error) {
 			return []model.TeacherDetails{{ID: 1, Name: "Alice"}}, 1, nil
 		},
 	}
@@ -409,7 +409,7 @@ func TestTeacherHandler_GetTeachers_Success(t *testing.T) {
 
 func TestTeacherHandler_GetTeachers_ServiceError(t *testing.T) {
 	svc := &mockTeacherSvc{
-		listFn: func(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error) {
+		listFn: func(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error) {
 			return nil, 0, errors.New("db error")
 		},
 	}

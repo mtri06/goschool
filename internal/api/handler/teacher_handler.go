@@ -16,7 +16,7 @@ type TeacherSvc interface {
 	CreateTeacher(newTeacher *model.NewTeacher) error
 	GetTeacherByID(teacherID int64) (*model.TeacherDetails, error)
 	UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error
-	ListTeachers(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error)
+	ListTeachers(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error)
 	DeleteTeacher(teacherID int64) error
 }
 
@@ -104,8 +104,9 @@ func (h *TeacherHandler) GetTeachers(w http.ResponseWriter, r *http.Request) {
 	pageSize, _ := httpx.GetQueryInt(r, "pageSize")
 	name := httpx.GetQueryStr(r, "name")
 	email := httpx.GetQueryStr(r, "email")
+	workingStatus := httpx.GetQueryStr(r, "workingStatus")
 
-	teachers, total, err := h.teacherSvc.ListTeachers(page, pageSize, name, email)
+	teachers, total, err := h.teacherSvc.ListTeachers(page, pageSize, name, email, workingStatus)
 	if err != nil {
 		httpx.RenderError(w, r, h.errMap, err)
 		return

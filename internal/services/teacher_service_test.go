@@ -31,7 +31,7 @@ type mockTeacherRepo struct {
 	teacherExistsFn func(id int64) (bool, error)
 	updateFn        func(id int64, u *model.UpdateTeacher) error
 	deleteFn        func(id int64) error
-	listFn          func(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error)
+	listFn          func(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error)
 }
 
 func (m *mockTeacherRepo) CreateTeacher(t *model.NewTeacher) error {
@@ -64,9 +64,9 @@ func (m *mockTeacherRepo) DeleteTeacher(id int64) error {
 	}
 	return nil
 }
-func (m *mockTeacherRepo) ListTeachers(page, pageSize int, name, email string) ([]model.TeacherDetails, int, error) {
+func (m *mockTeacherRepo) ListTeachers(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error) {
 	if m.listFn != nil {
-		return m.listFn(page, pageSize, name, email)
+		return m.listFn(page, pageSize, name, email, workingStatus)
 	}
 	return nil, 0, nil
 }
