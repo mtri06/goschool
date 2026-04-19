@@ -1,14 +1,14 @@
 package handler
 
 import (
-	"goschool/internal/services"
+	"goschool/internal/service"
 	"goschool/pkg/httpx"
 )
 
 func NewErrorMap() httpx.APIErrorMap {
 	return map[error]httpx.APIError{
-		services.ErrValidationFailed: httpx.ErrBadRequest,
-		services.ErrNotFound:         httpx.ErrNotFound,
-		services.ErrUnauthorized:     httpx.ErrUnauthorized,
+		service.ErrValidationFailed: httpx.ErrBadRequest,
+		service.ErrNotFound:         httpx.ErrNotFound,
+		service.ErrUnauthorized:     httpx.ErrUnauthorized,
 	}
 }

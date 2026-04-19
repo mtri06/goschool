@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"goschool/internal/api/handler"
-	"goschool/internal/services"
+	"goschool/internal/service"
 	"goschool/pkg/httpx"
 	"goschool/pkg/model"
 
@@ -264,7 +264,7 @@ func TestTeacherHandler_DeleteTeacher_MustPassCorrectIDToService(t *testing.T) {
 func TestTeacherHandler_DeleteTeacher_NotFound(t *testing.T) {
 	svc := &mockTeacherSvc{
 		deleteFn: func(id int64) error {
-			return services.ErrNotFound
+			return service.ErrNotFound
 		},
 	}
 	h := newHandler(svc)

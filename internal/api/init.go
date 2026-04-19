@@ -7,7 +7,7 @@ import (
 	"goschool/internal/api/routes"
 	"goschool/internal/env"
 	"goschool/internal/repository"
-	"goschool/internal/services"
+	"goschool/internal/service"
 	"goschool/pkg/logger"
 	"net/http"
 	"time"
@@ -50,9 +50,9 @@ func NewServer(dbURL string) http.Handler {
 	tokenRepo := repository.NewTokenRepository(dbClient)
 
 	// Init services
-	userSvc := services.NewUserService(userRepo)
-	teacherSvc := services.NewTeacherService(userRepo, teacherRepo, subjectRepo, userSvc)
-	authSvc := services.NewAuthService(userRepo, tokenRepo)
+	userSvc := service.NewUserService(userRepo)
+	teacherSvc := service.NewTeacherService(userRepo, teacherRepo, subjectRepo, userSvc)
+	authSvc := service.NewAuthService(userRepo, tokenRepo)
 
 	// Seed admin user
 	userSvc.SeedAdminUser()

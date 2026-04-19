@@ -3,7 +3,7 @@ package httpx
 import (
 	"errors"
 	"fmt"
-	"goschool/internal/services"
+	"goschool/internal/service"
 	"net/http"
 
 	"github.com/go-chi/render"
@@ -65,7 +65,7 @@ func RenderError(w http.ResponseWriter, r *http.Request, errMap APIErrorMap, err
 	if apiErr == ErrUnknownInternal {
 		log.Error().Err(err).Msg("Unhandled internal error")
 	} else {
-		var svcErr *services.Error
+		var svcErr *service.Error
 		if errors.As(err, &svcErr) {
 			apiErr.Type = svcErr.Type
 		}
