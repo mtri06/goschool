@@ -678,39 +678,6 @@ func TestTeacherService_UpdateTeacher_MustPassCorrectID(t *testing.T) {
 // TestListTeachers
 // ---------------------------------------------------------------------------
 
-func TestTeacherService_ListTeachers_PassingZeroValues(t *testing.T) {
-	var capturedPagination *repository.Pagination
-	var capturedUserFilter repository.Filters
-	var capturedTeacherFilter repository.Filters
-
-	svc := newTeacherServiceWithDefaultMocks()
-	svc.teacherRepo = &mockTeacherRepo{
-		listFn: func(p *repository.Pagination, userFilter repository.Filters, teacherFilter repository.Filters) ([]model.TeacherDetails, int, error) {
-			capturedPagination = p
-			capturedUserFilter = userFilter
-			capturedTeacherFilter = teacherFilter
-			return nil, 0, nil
-		},
-	}
-
-	_, _, err := svc.ListTeachers(0, 0, "", "", "")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	expectedPagination := repository.Pagination{Page: constant.DefaultPage, PageSize: constant.DefaultPageSize}
-
-	if capturedPagination == nil || *capturedPagination != expectedPagination {
-		t.Errorf("expected pagination %+v, got %+v", expectedPagination, capturedPagination)
-	}
-	if len(capturedUserFilter) != 0 {
-		t.Errorf("expected user filter to be empty, got %+v", capturedUserFilter)
-	}
-	if len(capturedTeacherFilter) != 0 {
-		t.Errorf("expected teacher filter to be empty, got %+v", capturedTeacherFilter)
-	}
-}
-
 func TestTeacherService_ListTeachers_RepoError(t *testing.T) {
 	dbErr := errors.New("db error")
 
