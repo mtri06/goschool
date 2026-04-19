@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
+	"goschool/pkg/constant"
 	"goschool/pkg/httpx"
 	"goschool/pkg/model"
 
@@ -32,7 +32,7 @@ func NewTeacherHandler(teacherSvc TeacherSvc, errMap httpx.APIErrorMap) *Teacher
 func (h *TeacherHandler) CreateTeacher(w http.ResponseWriter, r *http.Request) {
 	newTeacher, err := httpx.DecodeBody[model.NewTeacher](r)
 	if err != nil {
-		httpx.RenderError(w, r, h.errMap, err)
+		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidBody.WithErr(err))
 		return
 	}
 
@@ -48,7 +48,7 @@ func (h *TeacherHandler) GetTeacherByID(w http.ResponseWriter, r *http.Request) 
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		httpx.RenderError(w, r, h.errMap, fmt.Errorf("%w: invalid teacher id", httpx.ErrInvalidQuery))
+		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid teacher id"))
 		return
 	}
 
@@ -65,7 +65,7 @@ func (h *TeacherHandler) DeleteTeacher(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		httpx.RenderError(w, r, h.errMap, fmt.Errorf("%w: user id param is required", httpx.ErrInvalidQuery))
+		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid user id"))
 		return
 	}
 
@@ -81,13 +81,13 @@ func (h *TeacherHandler) UpdateTeacher(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		httpx.RenderError(w, r, h.errMap, fmt.Errorf("%w: invalid teacher id", httpx.ErrInvalidQuery))
+		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid teacher id"))
 		return
 	}
 
 	update, err := httpx.DecodeBody[model.UpdateTeacher](r)
 	if err != nil {
-		httpx.RenderError(w, r, h.errMap, err)
+		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidBody.WithErr(err))
 		return
 	}
 
@@ -100,11 +100,27 @@ func (h *TeacherHandler) UpdateTeacher(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TeacherHandler) GetTeachers(w http.ResponseWriter, r *http.Request) {
-	page, _ := httpx.GetQueryInt(r, "page")
-	pageSize, _ := httpx.GetQueryInt(r, "pageSize")
-	name := httpx.GetQueryStr(r, "name")
-	email := httpx.GetQueryStr(r, "email")
-	workingStatus := httpx.GetQueryStr(r, "workingStatus")
+	page := constant.DefaultPage
+	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+		p, err := strconv.Atoi(pageStr)
+		if err != nil {
+			httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidQuery.WithMsg("invalid page number"))
+			return
+		}
+		page = p
+	}
+	pageSize := constant.DefaultPageSize
+	if pageSizeStr := r.URL.Query().Get("pageSize"); pageSizeStr != "" {
+		ps, err := strconv.Atoi(pageSizeStr)
+		if err != nil {
+			httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidQuery.WithMsg("invalid page size"))
+			return
+		}
+		pageSize = ps
+	}
+	name := r.URL.Query().Get("name")
+	email := r.URL.Query().Get("email")
+	workingStatus := r.URL.Query().Get("workingStatus")
 
 	teachers, total, err := h.teacherSvc.ListTeachers(page, pageSize, name, email, workingStatus)
 	if err != nil {

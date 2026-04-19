@@ -71,15 +71,15 @@ func (s *UserService) SeedAdminUser() {
 
 func (s *UserService) validateUser(user *model.User) error {
 	if !slices.Contains(allGenders, user.Gender) {
-		return fmt.Errorf("%w: gender must be one of %v, got: %s", ErrValidationFailed, allGenders, user.Gender)
+		return NewError(fmt.Sprintf("gender must be one of %v", allGenders), "invalid_gender", ErrValidationFailed)
 	}
 
 	if !slices.Contains(allRoles, user.Role) {
-		return fmt.Errorf("%w: role must be one of %v, got: %s", ErrValidationFailed, allRoles, user.Role)
+		return NewError(fmt.Sprintf("role must be one of %v", allRoles), "invalid_role", ErrValidationFailed)
 	}
 
 	if err := validatePassword(user.Password); err != nil {
-		return fmt.Errorf("%w: invalid password: %v", ErrValidationFailed, err)
+		return NewError(fmt.Sprintf("invalid password: %v", err), "invalid_password", ErrValidationFailed)
 	}
 
 	exists, err := s.userRepo.UsernameExists(user.Username)
@@ -87,7 +87,7 @@ func (s *UserService) validateUser(user *model.User) error {
 		return fmt.Errorf("failed to check if username exists: %w", err)
 	}
 	if exists {
-		return fmt.Errorf("%w: username already exists: %s", ErrValidationFailed, user.Username)
+		return NewError("username already exists", "username_exists", ErrValidationFailed)
 	}
 
 	if user.Email != nil {
@@ -97,7 +97,7 @@ func (s *UserService) validateUser(user *model.User) error {
 			return fmt.Errorf("failed to check if email exists: %w", err)
 		}
 		if exists {
-			return fmt.Errorf("%w: email already exists: %s", ErrValidationFailed, *user.Email)
+			return NewError("email already exists", "email_exists", ErrValidationFailed)
 		}
 	}
 

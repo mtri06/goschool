@@ -4,9 +4,11 @@ run:
 dev:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.dev up --build -d
 
+dev/logs:
+	docker logs -f goschool-app-dev
+
 dev/stop:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.dev stop
-
 
 unit_test:
 	go test ./...

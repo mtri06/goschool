@@ -49,12 +49,12 @@ func (s *AuthService) Login(username, password string) (*model.AuthTokens, error
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 	if user == nil {
-		return nil, ErrInvalidCredentials
+		return nil, NewError("wrong credentials", "wrong_credentials", ErrUnauthorized)
 	}
 
 	// Compare password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		return nil, ErrInvalidCredentials
+		return nil, NewError("wrong credentials", "wrong_credentials", ErrUnauthorized)
 	}
 
 	// Generate access token (JWT)
@@ -148,7 +148,9 @@ func (s *AuthService) RefreshTokens(accessToken, refreshToken string) (*model.Au
 
 	// Both tokens must belong to the same user
 	if rToken.UserID != userID {
-		log.Warn().Int64("token_user_id", rToken.UserID).Int64("claims_user_id", userID).Msg("Refresh token user ID does not match access token claims")
+		log.Warn().
+			Int64("token_user_id", rToken.UserID).Int64("claims_user_id", userID).
+			Msg("Refresh token user ID does not match access token claims")
 		return nil, ErrUnauthorized
 	}
 

@@ -3,6 +3,7 @@ package httpx
 import (
 	"errors"
 	"fmt"
+	"goschool/internal/services"
 	"net/http"
 
 	"github.com/go-chi/render"
@@ -10,8 +11,8 @@ import (
 )
 
 type APIError struct {
-	// Title is a short, machine-readable string that describes the error.
-	Title string `json:"title"`
+	// Type is an machine-readable string that can be used to further categorize the error.
+	Type string `json:"type"`
 	// Msg is a human-readable string that describes the error.
 	Msg string `json:"message"`
 	// Status is the HTTP status code that should be returned with the error.
@@ -19,7 +20,7 @@ type APIError struct {
 }
 
 func (e APIError) Error() string {
-	return fmt.Sprintf("%s: %s", e.Title, e.Msg)
+	return e.Msg
 }
 
 // ApiErrorMap is a map of standard errors to their corresponding ApiError.
@@ -30,7 +31,7 @@ func (e APIError) WithErr(err error) APIError {
 		return e
 	}
 	return APIError{
-		Title:  e.Title,
+		Type:   e.Type,
 		Msg:    fmt.Sprintf("%s: %v", e.Msg, err),
 		Status: e.Status,
 	}
@@ -38,7 +39,7 @@ func (e APIError) WithErr(err error) APIError {
 
 func (e APIError) WithMsg(msg string) APIError {
 	return APIError{
-		Title:  e.Title,
+		Type:   e.Type,
 		Msg:    fmt.Sprintf("%s: %s", e.Msg, msg),
 		Status: e.Status,
 	}
@@ -64,6 +65,10 @@ func RenderError(w http.ResponseWriter, r *http.Request, errMap APIErrorMap, err
 	if apiErr == ErrUnknownInternal {
 		log.Error().Err(err).Msg("Unhandled internal error")
 	} else {
+		var svcErr *services.Error
+		if errors.As(err, &svcErr) {
+			apiErr.Type = svcErr.Type
+		}
 		apiErr = apiErr.WithErr(err)
 	}
 
@@ -73,38 +78,56 @@ func RenderError(w http.ResponseWriter, r *http.Request, errMap APIErrorMap, err
 
 var (
 	ErrBadRequest = APIError{
-		Title:  "bad_request",
+		Type:   "bad_request",
 		Msg:    "Bad request",
 		Status: http.StatusBadRequest,
 	}
 
+	ErrInvalidBody = APIError{
+		Type:   "invalid_body",
+		Msg:    "Invalid request body",
+		Status: http.StatusBadRequest,
+	}
+
+	ErrInvalidQuery = APIError{
+		Type:   "invalid_query",
+		Msg:    "Invalid query",
+		Status: http.StatusBadRequest,
+	}
+
+	ErrInvalidParam = APIError{
+		Type:   "invalid_param",
+		Msg:    "Invalid URL parameter",
+		Status: http.StatusBadRequest,
+	}
+
 	ErrUnauthorized = APIError{
-		Title:  "unauthorized",
-		Msg:    "Authentication failed",
+		Type:   "unauthorized",
+		Msg:    "Unauthorized",
 		Status: http.StatusUnauthorized,
 	}
 
 	ErrForbidden = APIError{
-		Title:  "forbidden",
-		Msg:    "You do not have permission to access the requested resource",
+		Type:   "forbidden",
+		Msg:    "Forbidden",
 		Status: http.StatusForbidden,
 	}
 
 	ErrConflict = APIError{
-		Title:  "conflict",
-		Msg:    "The request could not be completed due to a conflict with the current state of the resource",
+		Type:   "conflict",
+		Msg:    "Conflict",
 		Status: http.StatusConflict,
 	}
 
 	ErrNotFound = APIError{
-		Title:  "not_found",
-		Msg:    "The requested resource could not be found",
+		Type:   "not_found",
+		Msg:    "Resource not found",
 		Status: http.StatusNotFound,
 	}
 
 	ErrUnknownInternal = APIError{
-		Title:  "unknown_internal_error",
-		Msg:    "An unknown internal error occurred",
+		Type:   "internal_error",
+		Msg:    "An internal error has occurred",
 		Status: http.StatusInternalServerError,
 	}
 )

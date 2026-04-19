@@ -67,13 +67,17 @@ func (s *TeacherService) CreateTeacher(newTeacher *model.NewTeacher) error {
 	newTeacher.Password = hashedPassword
 
 	if !slices.Contains(teacherWorkingStatuses, newTeacher.WorkingStatus) {
-		return fmt.Errorf("%w: working status must be one of %v, got: %s", ErrValidationFailed, teacherWorkingStatuses, newTeacher.WorkingStatus)
+		return NewError(
+			fmt.Sprintf("working status must be one of %v, got: %s", teacherWorkingStatuses, newTeacher.WorkingStatus),
+			"invalid_working_status",
+			ErrValidationFailed,
+		)
 	}
 
 	if exists, err := s.subjectRepo.Exists(newTeacher.SubjectID); err != nil {
 		return err
 	} else if !exists {
-		return fmt.Errorf("%w: subject not found: %d", ErrNotFound, newTeacher.SubjectID)
+		return NewError(fmt.Sprintf("subject not found: %v", newTeacher.SubjectID), "subject_not_found", ErrNotFound)
 	}
 
 	if err := s.teacherRepo.CreateTeacher(newTeacher); err != nil {
@@ -88,7 +92,7 @@ func (s *TeacherService) GetTeacherByID(teacherID int64) (*model.TeacherDetails,
 		return nil, fmt.Errorf("failed to get teacher: %w", err)
 	}
 	if teacher == nil {
-		return nil, fmt.Errorf("%w: teacher not found with id: %d", ErrNotFound, teacherID)
+		return nil, NewError(fmt.Sprintf("teacher not found with id: %d", teacherID), "teacher_not_found", ErrNotFound)
 	}
 	return teacher, nil
 }
@@ -125,11 +129,15 @@ func (s *TeacherService) ListTeachers(page, pageSize int, name, email, workingSt
 
 func (s *TeacherService) UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error {
 	if !slices.Contains(allGenders, update.Gender) {
-		return fmt.Errorf("%w: gender must be one of %v, got: %s", ErrValidationFailed, allGenders, update.Gender)
+		return NewError(fmt.Sprintf("gender must be one of %v", allGenders), "invalid_gender", ErrValidationFailed)
 	}
 
 	if !slices.Contains(teacherWorkingStatuses, update.WorkingStatus) {
-		return fmt.Errorf("%w: working status must be one of %v, got: %s", ErrValidationFailed, teacherWorkingStatuses, update.WorkingStatus)
+		return NewError(
+			fmt.Sprintf("working status must be one of %v", teacherWorkingStatuses),
+			"invalid_working_status",
+			ErrValidationFailed,
+		)
 	}
 
 	exists, err := s.teacherRepo.TeacherExists(teacherID)
@@ -137,13 +145,13 @@ func (s *TeacherService) UpdateTeacher(teacherID int64, update *model.UpdateTeac
 		return fmt.Errorf("failed to check if teacher exists: %w", err)
 	}
 	if !exists {
-		return fmt.Errorf("%w: teacher not found with id: %d", ErrNotFound, teacherID)
+		return NewError("teacher not found", "teacher_not_found", ErrNotFound)
 	}
 
 	if exists, err := s.subjectRepo.Exists(update.SubjectID); err != nil {
 		return fmt.Errorf("failed to check if subject exists: %w", err)
 	} else if !exists {
-		return fmt.Errorf("%w: subject not found: %d", ErrNotFound, update.SubjectID)
+		return NewError("subject not found", "subject_not_found", ErrNotFound)
 	}
 
 	if update.Email != nil {
@@ -154,7 +162,7 @@ func (s *TeacherService) UpdateTeacher(teacherID int64, update *model.UpdateTeac
 			return fmt.Errorf("failed to check if email exists: %w", err)
 		}
 		if exists {
-			return fmt.Errorf("%w: email already exists: %s", ErrValidationFailed, email)
+			return NewError("email already exists", "email_exists", ErrValidationFailed)
 		}
 	}
 
@@ -170,7 +178,7 @@ func (s *TeacherService) DeleteTeacher(teacherID int64) error {
 		return fmt.Errorf("failed to check if teacher exists: %w", err)
 	}
 	if !exists {
-		return fmt.Errorf("%w: teacher not found with id: %d", ErrNotFound, teacherID)
+		return NewError("teacher not found", "teacher_not_found", ErrNotFound)
 	}
 
 	if err := s.teacherRepo.DeleteTeacher(teacherID); err != nil {

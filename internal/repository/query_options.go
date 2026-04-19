@@ -67,7 +67,7 @@ func (f Filters) toWhereClause() (where string, args []any, err error) {
 
 		field := item.Field
 		if item.alias != "" {
-			field = fmt.Sprintf("%s.%s", item.alias, item.Field)
+			field = fmt.Sprintf("%s.%s", item.alias, field)
 		}
 
 		if item.Op == OpIn {
