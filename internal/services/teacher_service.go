@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	repo "goschool/internal/repository"
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
 	"slices"
@@ -18,7 +19,7 @@ type UserSvcTeacherRepo interface {
 	TeacherExists(id int64) (bool, error)
 	UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error
 	DeleteTeacher(teacherID int64) error
-	ListTeachers(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error)
+	ListTeachers(p *repo.Pagination, userFilters repo.Filters, teacherFilters repo.Filters) ([]model.TeacherDetails, int, error)
 }
 
 type TeacherSvcSubjectRepo interface {
@@ -99,7 +100,27 @@ func (s *TeacherService) ListTeachers(page, pageSize int, name, email, workingSt
 	if pageSize < 1 || pageSize > 100 {
 		pageSize = constant.DefaultPageSize
 	}
-	return s.teacherRepo.ListTeachers(page, pageSize, name, email, workingStatus)
+	pagination := &repo.Pagination{
+		Page:     page,
+		PageSize: pageSize,
+	}
+
+	userFilters := repo.Filters{
+		repo.NewFilter("role", repo.OpEquals, constant.RoleTeacher),
+	}
+	if name != "" {
+		userFilters = append(userFilters, repo.NewFilter("name", repo.OpLikeInsensitive, "%"+name+"%"))
+	}
+	if email != "" {
+		email = strings.ToLower(email)
+		userFilters = append(userFilters, repo.NewFilter("email", repo.OpLike, "%"+email+"%"))
+	}
+	var teacherFilters repo.Filters
+	if workingStatus != "" {
+		teacherFilters = append(teacherFilters, repo.NewFilter("working_status", repo.OpEquals, workingStatus))
+	}
+
+	return s.teacherRepo.ListTeachers(pagination, userFilters, teacherFilters)
 }
 
 func (s *TeacherService) UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error {

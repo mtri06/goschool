@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"goschool/pkg/model"
-	"strings"
 	"sync"
 
 	"github.com/jmoiron/sqlx"
@@ -59,26 +58,18 @@ func (r *TeacherRepository) CreateTeacher(newTeacher *model.NewTeacher) error {
 }
 
 // ListTeachers returns a paginated list of teachers and the total count, with optional filters by name, email, and working status
-func (r *TeacherRepository) ListTeachers(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error) {
-	offset := (page - 1) * pageSize
+func (r *TeacherRepository) ListTeachers(
+	p *Pagination, userFilters Filters, teacherFilters Filters,
+) ([]model.TeacherDetails, int, error) {
+	limitOffset := p.toLimitOffset()
 
-	var conditions []string
-	var args []any
-	conditions = append(conditions, "u.role = 'teacher'")
-	if name != "" {
-		args = append(args, "%"+name+"%")
-		conditions = append(conditions, fmt.Sprintf("u.name ILIKE $%d", len(args)))
+	userFilters.setAlias("u")
+	teacherFilters.setAlias("t")
+	filters := append(userFilters, teacherFilters...)
+	where, args, err := filters.toWhereClause()
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to build query condition: %w", err)
 	}
-	if email != "" {
-		email = strings.ToLower(email)
-		args = append(args, "%"+email+"%")
-		conditions = append(conditions, fmt.Sprintf("u.email LIKE $%d", len(args)))
-	}
-	if workingStatus != "" {
-		args = append(args, workingStatus)
-		conditions = append(conditions, fmt.Sprintf("t.working_status = $%d", len(args)))
-	}
-	where := "WHERE " + strings.Join(conditions, " AND ")
 
 	var (
 		total    int
@@ -92,7 +83,11 @@ func (r *TeacherRepository) ListTeachers(page, pageSize int, name, email, workin
 
 	go func() {
 		defer wg.Done()
-		q := fmt.Sprintf(`SELECT COUNT(*) FROM users u %s`, where)
+		q := "SELECT COUNT(*) FROM users u "
+		if len(teacherFilters) > 0 {
+			q += "JOIN user_teachers t ON t.user_id = u.id "
+		}
+		q += where
 		if err := r.db.Get(&total, q, args...); err != nil {
 			countErr = fmt.Errorf("failed to count teachers: %w", err)
 		}
@@ -100,16 +95,15 @@ func (r *TeacherRepository) ListTeachers(page, pageSize int, name, email, workin
 
 	go func() {
 		defer wg.Done()
-		listArgs := append(args, pageSize, offset)
 		q := fmt.Sprintf(`
 			SELECT u.id, u.username, u.email, u.role, u.name, u.date_of_birth, u.gender,
 			       t.subject_id, t.hire_date, t.working_status, t.created_at, t.updated_at
 			FROM users u
 			JOIN user_teachers t ON t.user_id = u.id
 			%s
-			LIMIT $%d OFFSET $%d
-		`, where, len(listArgs)-1, len(listArgs))
-		if err := r.db.Select(&teachers, q, listArgs...); err != nil {
+			%s
+		`, where, limitOffset)
+		if err := r.db.Select(&teachers, q, args...); err != nil {
 			listErr = fmt.Errorf("failed to list teachers: %w", err)
 		}
 	}()
