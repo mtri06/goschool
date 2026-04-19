@@ -4,12 +4,14 @@ services:
       - '8080:8080'
     env_file:
       - .env.dev
+    container_name: 'goschool-app-dev'
 
   postgres:
     ports:
       - '5432:5432'
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
+    container_name: 'goschool-postgres'
 
 volumes:
   postgres_dev_data:

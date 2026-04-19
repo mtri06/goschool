@@ -4,8 +4,10 @@ services:
       - '8081:8080'
     env_file:
       - .env.test
+    container_name: 'goschool-app-test'
 
   postgres:
     ports:
       - '5433:5432'
+    container_name: 'goschool-postgres-test'
     # No named volume — ephemeral, clean slate on every run

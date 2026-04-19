@@ -10,11 +10,13 @@ services:
         limits:
           cpus: '1.0'
           memory: 256M
+    container_name: 'goschool-app-prod'
 
   postgres:
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
     restart: always
+    container_name: 'goschool-postgres-prod'
 
 volumes:
   postgres_prod_data:
