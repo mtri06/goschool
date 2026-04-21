@@ -16,12 +16,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type AuthSvcUserRepo interface {
+type authSvcUserRepo interface {
 	GetByUsername(username string) (*model.User, error)
 	GetByID(id int64) (*model.User, error)
 }
 
-type AuthSvcTokenRepo interface {
+type authSvcTokenRepo interface {
 	CreateToken(token *model.Token) error
 	RevokeByBody(body string) error
 	GetByBody(body string) (*model.Token, error)
@@ -30,11 +30,11 @@ type AuthSvcTokenRepo interface {
 }
 
 type AuthService struct {
-	userRepo  AuthSvcUserRepo
-	tokenRepo AuthSvcTokenRepo
+	userRepo  authSvcUserRepo
+	tokenRepo authSvcTokenRepo
 }
 
-func NewAuthService(userRepo AuthSvcUserRepo, tokenRepo AuthSvcTokenRepo) *AuthService {
+func NewAuthService(userRepo authSvcUserRepo, tokenRepo authSvcTokenRepo) *AuthService {
 	return &AuthService{
 		userRepo:  userRepo,
 		tokenRepo: tokenRepo,

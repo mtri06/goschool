@@ -9,11 +9,11 @@ import (
 	"strings"
 )
 
-type TeacherSvcUserRepo interface {
+type teacherSvcUserRepo interface {
 	EmailExists(email string) (bool, error)
 }
 
-type UserSvcTeacherRepo interface {
+type userSvcTeacherRepo interface {
 	CreateTeacher(newTeacher *model.NewTeacher) error
 	GetTeacherByID(id int64) (*model.TeacherDetails, error)
 	TeacherExists(id int64) (bool, error)
@@ -22,22 +22,22 @@ type UserSvcTeacherRepo interface {
 	ListTeachers(p *repo.Pagination, userFilters repo.Filters, teacherFilters repo.Filters) ([]model.TeacherDetails, int, error)
 }
 
-type TeacherSvcSubjectRepo interface {
+type teacherSvcSubjectRepo interface {
 	Exists(id int64) (bool, error)
 }
 
-type TeacherSvcUserSvc interface {
+type teacherSvcUserSvc interface {
 	validateUser(user *model.User) error
 }
 
 type TeacherService struct {
-	userRepo    TeacherSvcUserRepo
-	teacherRepo UserSvcTeacherRepo
-	subjectRepo TeacherSvcSubjectRepo
-	userSvc     TeacherSvcUserSvc
+	userRepo    teacherSvcUserRepo
+	teacherRepo userSvcTeacherRepo
+	subjectRepo teacherSvcSubjectRepo
+	userSvc     teacherSvcUserSvc
 }
 
-func NewTeacherService(userRepo TeacherSvcUserRepo, teacherRepo UserSvcTeacherRepo, subjectRepo TeacherSvcSubjectRepo, userSvc TeacherSvcUserSvc) *TeacherService {
+func NewTeacherService(userRepo teacherSvcUserRepo, teacherRepo userSvcTeacherRepo, subjectRepo teacherSvcSubjectRepo, userSvc teacherSvcUserSvc) *TeacherService {
 	return &TeacherService{
 		userRepo:    userRepo,
 		teacherRepo: teacherRepo,
