@@ -10,5 +10,6 @@ func NewErrorMap() httpx.APIErrorMap {
 		service.ErrValidationFailed: httpx.ErrBadRequest,
 		service.ErrNotFound:         httpx.ErrNotFound,
 		service.ErrUnauthorized:     httpx.ErrUnauthorized,
+		service.ErrForbidden:        httpx.ErrForbidden,
 	}
 }
