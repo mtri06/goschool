@@ -19,11 +19,11 @@ const (
 // - contains at least one special character
 func validatePassword(password string) error {
 	if len(password) < minPasswordLength {
-		return fmt.Errorf("%w: password must be at least %d characters long", ErrValidationFailed, minPasswordLength)
+		return fmt.Errorf("password must be at least %d characters long", minPasswordLength)
 	}
 
 	if len(password) > maxPasswordLength {
-		return fmt.Errorf("%w: password must be at most %d characters long", ErrValidationFailed, maxPasswordLength)
+		return fmt.Errorf("password must be at most %d characters long", maxPasswordLength)
 	}
 
 	var hasUpper, hasLower, hasDigit, hasSpecial bool
@@ -41,16 +41,16 @@ func validatePassword(password string) error {
 	}
 
 	if !hasUpper {
-		return fmt.Errorf("%w: password must contain at least one uppercase letter", ErrValidationFailed)
+		return fmt.Errorf("password must contain at least one uppercase letter")
 	}
 	if !hasLower {
-		return fmt.Errorf("%w: password must contain at least one lowercase letter", ErrValidationFailed)
+		return fmt.Errorf("password must contain at least one lowercase letter")
 	}
 	if !hasDigit {
-		return fmt.Errorf("%w: password must contain at least one digit", ErrValidationFailed)
+		return fmt.Errorf("password must contain at least one digit")
 	}
 	if !hasSpecial {
-		return fmt.Errorf("%w: password must contain at least one special character", ErrValidationFailed)
+		return fmt.Errorf("password must contain at least one special character")
 	}
 
 	return nil
