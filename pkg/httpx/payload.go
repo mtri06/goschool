@@ -22,12 +22,7 @@ func DecodeBody[T any](r *http.Request) (*T, error) {
 	err = validate.Struct(payload)
 	if err != nil {
 		if ve, ok := err.(validator.ValidationErrors); ok {
-			var sb strings.Builder
-			for _, fe := range ve {
-				sb.WriteString(ValidationError(fe))
-				sb.WriteString("; ")
-			}
-			return nil, ErrValidationFailed.WithMsg(strings.TrimSuffix(sb.String(), "; "))
+			return nil, ErrValidationFailed.WithMsg(sanitizeValidationError(ve))
 		}
 		log.Error().Err(err).Msg("validation error")
 		return nil, ErrValidationFailed
@@ -85,10 +80,16 @@ var validationMessages = map[string]validationMsgFn{
 	},
 }
 
-// ValidationError returns a human-readable message for a validator.FieldError
-func ValidationError(err validator.FieldError) string {
-	if fn, ok := validationMessages[err.Tag()]; ok {
-		return fn(err.Field(), err.Param())
+// sanitizeValidationError returns a human-readable message for all validation errors.
+func sanitizeValidationError(errs validator.ValidationErrors) string {
+	var sb strings.Builder
+	for _, fe := range errs {
+		if fn, ok := validationMessages[fe.Tag()]; ok {
+			sb.WriteString(fn(fe.Field(), fe.Param()))
+		} else {
+			fmt.Fprintf(&sb, "%s is invalid (%s)", fe.Field(), fe.Tag())
+		}
+		sb.WriteString("; ")
 	}
-	return fmt.Sprintf("%s is invalid (%s)", err.Field(), err.Tag())
+	return strings.TrimSuffix(sb.String(), "; ")
 }
