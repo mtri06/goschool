@@ -24,5 +24,5 @@ test/stop:
 prod:
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up --build -d
 
-down/volumes:
-	docker compose down -v
+dev/down_volumes:
+	docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.dev down -v

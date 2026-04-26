@@ -1,26 +1,34 @@
 package service
 
 type Error struct {
-	Msg  string
-	Type string
-	Err  error
+	msg     string
+	errType string
+	err     error
 }
 
 func NewError(msg, errType string, err error) *Error {
-	return &Error{Msg: msg, Type: errType, Err: err}
+	return &Error{msg: msg, errType: errType, err: err}
 }
 
 func (e *Error) Error() string {
-	return e.Msg
+	return e.msg
 }
 
 func (e *Error) Unwrap() error {
-	return e.Err
+	return e.err
+}
+
+func (e *Error) Type() string {
+	return e.errType
+}
+
+func (e *Error) Msg() string {
+	return e.msg
 }
 
 var (
-	ErrValidationFailed = &Error{Msg: "validation failed", Type: "validation_failed", Err: nil}
-	ErrNotFound         = &Error{Msg: "resource not found", Type: "not_found", Err: nil}
-	ErrUnauthorized     = &Error{Msg: "unauthorized", Type: "unauthorized", Err: nil}
-	ErrForbidden        = &Error{Msg: "forbidden", Type: "forbidden", Err: nil}
+	ErrValidationFailed = &Error{msg: "validation failed", errType: "validation_failed"}
+	ErrNotFound         = &Error{msg: "resource not found", errType: "not_found"}
+	ErrUnauthorized     = &Error{msg: "unauthorized", errType: "unauthorized"}
+	ErrForbidden        = &Error{msg: "forbidden", errType: "forbidden"}
 )

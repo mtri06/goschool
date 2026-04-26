@@ -1,13 +1,13 @@
 package httpx
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
+	"github.com/rs/zerolog/log"
 )
 
 var validate = validator.New(validator.WithRequiredStructEnabled())
@@ -16,7 +16,8 @@ func DecodeBody[T any](r *http.Request) (*T, error) {
 	var payload T
 	err := render.DecodeJSON(r.Body, &payload)
 	if err != nil {
-		return nil, ErrInvalidBody.WithErr(err)
+		log.Error().Err(err).Msg("failed to decode request body")
+		return nil, ErrInvalidBody
 	}
 	err = validate.Struct(payload)
 	if err != nil {
@@ -26,9 +27,10 @@ func DecodeBody[T any](r *http.Request) (*T, error) {
 				sb.WriteString(ValidationError(fe))
 				sb.WriteString("; ")
 			}
-			err = errors.New(strings.TrimSuffix(sb.String(), "; "))
+			return nil, ErrValidationFailed.WithMsg(strings.TrimSuffix(sb.String(), "; "))
 		}
-		return nil, ErrValidationFailed.WithErr(err)
+		log.Error().Err(err).Msg("validation error")
+		return nil, ErrValidationFailed
 	}
 	return &payload, nil
 }
