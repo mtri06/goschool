@@ -32,7 +32,7 @@ func NewTeacherHandler(teacherSvc teacherSvc, errMap httpx.APIErrorMap) *Teacher
 func (h *TeacherHandler) CreateTeacher(w http.ResponseWriter, r *http.Request) {
 	newTeacher, err := httpx.DecodeBody[model.NewTeacher](r)
 	if err != nil {
-		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidBody.WithErr(err))
+		httpx.RenderError(w, r, h.errMap, err)
 		return
 	}
 
@@ -87,7 +87,7 @@ func (h *TeacherHandler) UpdateTeacher(w http.ResponseWriter, r *http.Request) {
 
 	update, err := httpx.DecodeBody[model.UpdateTeacher](r)
 	if err != nil {
-		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidBody.WithErr(err))
+		httpx.RenderError(w, r, h.errMap, err)
 		return
 	}
 

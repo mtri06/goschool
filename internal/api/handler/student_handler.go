@@ -22,7 +22,7 @@ func NewStudentHandler(studentSvc studentSvc, errMap httpx.APIErrorMap) *Student
 func (h *StudentHandler) CreateStudent(w http.ResponseWriter, r *http.Request) {
 	newStudent, err := httpx.DecodeBody[model.NewStudent](r)
 	if err != nil {
-		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidBody.WithErr(err))
+		httpx.RenderError(w, r, h.errMap, err)
 		return
 	}
 

@@ -83,6 +83,12 @@ var (
 		Status: http.StatusBadRequest,
 	}
 
+	ErrValidationFailed = APIError{
+		Type:   "validation_failed",
+		Msg:    "Validation failed",
+		Status: http.StatusBadRequest,
+	}
+
 	ErrInvalidBody = APIError{
 		Type:   "invalid_body",
 		Msg:    "Invalid request body",
