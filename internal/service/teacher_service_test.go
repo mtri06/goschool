@@ -102,7 +102,7 @@ func (m *mockUserSvcForTeacher) validateUser(user *model.User) error {
 // Helpers
 // ---------------------------------------------------------------------------
 
-func newTeacherServiceWithDefaultMocks() *TeacherService {
+func newTeacherServiceWithMocks() *TeacherService {
 	return &TeacherService{
 		userRepo:    &mockTeacherUserRepo{},
 		teacherRepo: &mockTeacherRepo{},
@@ -142,7 +142,7 @@ func validUpdateTeacher() *model.UpdateTeacher {
 func TestTeacherService_CreateTeacher_MustCallValidateUser(t *testing.T) {
 	called := false
 
-	svc := newTeacherServiceWithDefaultMocks()
+	svc := newTeacherServiceWithMocks()
 	svc.userSvc = &mockUserSvcForTeacher{
 		validateUserFn: func(u *model.User) error {
 			called = true
@@ -163,7 +163,7 @@ func TestTeacherService_CreateTeacher_MustCallValidateUser(t *testing.T) {
 func TestTeacherService_PasswordMustBeHashedOnCreate(t *testing.T) {
 	var capturedTeacher *model.NewTeacher
 
-	svc := newTeacherServiceWithDefaultMocks()
+	svc := newTeacherServiceWithMocks()
 	svc.teacherRepo = &mockTeacherRepo{
 		createFn: func(t *model.NewTeacher) error {
 			capturedTeacher = t
@@ -282,7 +282,7 @@ func TestTeacherService_CreateTeacher(t *testing.T) {
 				tc.userSvc = &mockUserSvcForTeacher{}
 			}
 
-			svc := newTeacherServiceWithDefaultMocks()
+			svc := newTeacherServiceWithMocks()
 			svc.userRepo = tc.userRepo
 			svc.teacherRepo = tc.teacherRepo
 			svc.subjectRepo = tc.subjectRepo
@@ -342,7 +342,7 @@ func TestTeacherService_GetTeacherByID(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := newTeacherServiceWithDefaultMocks()
+			svc := newTeacherServiceWithMocks()
 			svc.teacherRepo = tc.teacherRepo
 
 			got, err := svc.GetTeacherByID(tc.id)
@@ -363,7 +363,7 @@ func TestTeacherService_GetTeacherByID_MustPassCorrectID(t *testing.T) {
 		var capturedID *int64
 		teacher := &model.TeacherDetails{ID: id, Name: "Jane Doe"}
 
-		svc := newTeacherServiceWithDefaultMocks()
+		svc := newTeacherServiceWithMocks()
 		svc.teacherRepo = &mockTeacherRepo{getByIDFn: func(id int64) (*model.TeacherDetails, error) {
 			capturedID = &id
 			return teacher, nil
@@ -434,7 +434,7 @@ func TestTeacherService_DeleteTeacher(t *testing.T) {
 				tc.teacherRepo = &mockTeacherRepo{}
 			}
 
-			svc := newTeacherServiceWithDefaultMocks()
+			svc := newTeacherServiceWithMocks()
 			svc.teacherRepo = tc.teacherRepo
 
 			err := svc.DeleteTeacher(tc.id)
@@ -452,7 +452,7 @@ func TestTeacherService_DeleteTeacher_MustPassCorrectID(t *testing.T) {
 		var existCapturedID *int64
 		var deleteCapturedID *int64
 
-		svc := newTeacherServiceWithDefaultMocks()
+		svc := newTeacherServiceWithMocks()
 		svc.teacherRepo = &mockTeacherRepo{
 			teacherExistsFn: func(id int64) (bool, error) {
 				existCapturedID = &id
@@ -626,7 +626,7 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 				}
 			}
 
-			svc := newTeacherServiceWithDefaultMocks()
+			svc := newTeacherServiceWithMocks()
 			svc.userRepo = tc.userRepo
 			svc.teacherRepo = tc.teacherRepo
 			svc.subjectRepo = tc.subjectRepo
@@ -646,7 +646,7 @@ func TestTeacherService_UpdateTeacher_MustPassCorrectID(t *testing.T) {
 		var teacherExistsCapturedID *int64
 		var updateCapturedID *int64
 
-		svc := newTeacherServiceWithDefaultMocks()
+		svc := newTeacherServiceWithMocks()
 		svc.teacherRepo = &mockTeacherRepo{
 			teacherExistsFn: func(id int64) (bool, error) {
 				teacherExistsCapturedID = &id
@@ -681,7 +681,7 @@ func TestTeacherService_UpdateTeacher_MustPassCorrectID(t *testing.T) {
 func TestTeacherService_ListTeachers_RepoError(t *testing.T) {
 	dbErr := errors.New("db error")
 
-	svc := newTeacherServiceWithDefaultMocks()
+	svc := newTeacherServiceWithMocks()
 	svc.teacherRepo = &mockTeacherRepo{
 		listFn: func(p *repository.Pagination, userFilter repository.Filters, teacherFilter repository.Filters) ([]model.TeacherDetails, int, error) {
 			return nil, 0, dbErr
@@ -715,7 +715,7 @@ func TestTeacherService_ListTeachers_MustPassCorrectPaginationOptionToRepo(t *te
 	for _, tc := range tests {
 		var capturedPagination *repository.Pagination
 
-		svc := newTeacherServiceWithDefaultMocks()
+		svc := newTeacherServiceWithMocks()
 		svc.teacherRepo = &mockTeacherRepo{
 			listFn: func(p *repository.Pagination, userFilter repository.Filters, teacherFilter repository.Filters) ([]model.TeacherDetails, int, error) {
 				capturedPagination = p
@@ -771,7 +771,7 @@ func TestTeacherService_ListTeachers_MustPassFilterIfItIsNotZeroValue(t *testing
 		var capturedUserFilter repository.Filters
 		var capturedTeacherFilter repository.Filters
 
-		svc := newTeacherServiceWithDefaultMocks()
+		svc := newTeacherServiceWithMocks()
 		svc.teacherRepo = &mockTeacherRepo{
 			listFn: func(p *repository.Pagination, userFilter repository.Filters, teacherFilter repository.Filters) ([]model.TeacherDetails, int, error) {
 				capturedUserFilter = userFilter

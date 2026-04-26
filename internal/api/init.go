@@ -46,12 +46,14 @@ func NewServer(dbURL string) http.Handler {
 	// Init repositories
 	userRepo := repository.NewUserRepository(dbClient)
 	teacherRepo := repository.NewTeacherRepository(dbClient)
+	studentRepo := repository.NewStudentRepository(dbClient)
 	subjectRepo := repository.NewSubjectRepository(dbClient)
 	tokenRepo := repository.NewTokenRepository(dbClient)
 
 	// Init services
 	userSvc := service.NewUserService(userRepo)
 	teacherSvc := service.NewTeacherService(userRepo, teacherRepo, subjectRepo, userSvc)
+	studentSvc := service.NewStudentService(studentRepo, userSvc)
 	authSvc := service.NewAuthService(userRepo, tokenRepo)
 
 	// Seed admin user
@@ -60,10 +62,12 @@ func NewServer(dbURL string) http.Handler {
 	// Init handlers
 	errMap := handler.NewErrorMap()
 	teacherHandler := handler.NewTeacherHandler(teacherSvc, errMap)
+	studentHandler := handler.NewStudentHandler(studentSvc, errMap)
 	authHandler := handler.NewAuthHandler(authSvc, errMap)
 
 	// Mount routes
 	routes.MountTeacherRoutes(r, teacherHandler)
+	routes.MountStudentRoutes(r, studentHandler)
 	routes.MountAuthRoutes(r, authHandler)
 
 	return r

@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"goschool/pkg/constant"
 	"goschool/pkg/model"
 	"sync"
 
@@ -32,9 +33,9 @@ func (r *TeacherRepository) CreateTeacher(newTeacher *model.NewTeacher) error {
 	var userID int64
 	err = tx.QueryRow(`
 		INSERT INTO users (username, password, email, role, name, date_of_birth, gender)
-		VALUES ($1, $2, $3, 'teacher', $4, $5, $6)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id`,
-		newTeacher.Username, newTeacher.Password, newTeacher.Email,
+		newTeacher.Username, newTeacher.Password, newTeacher.Email, constant.RoleTeacher,
 		newTeacher.Name, newTeacher.DateOfBirth, newTeacher.Gender,
 	).Scan(&userID)
 	if err != nil {

@@ -1,4 +1,4 @@
-package handler_test
+package handler
 
 import (
 	"bytes"
@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"goschool/internal/api/handler"
 	"goschool/internal/service"
 	"goschool/pkg/httpx"
 	"goschool/pkg/model"
@@ -66,8 +65,8 @@ func (m *mockTeacherSvc) DeleteTeacher(id int64) error {
 // Helpers
 // ---------------------------------------------------------------------------
 
-func newHandler(svc *mockTeacherSvc) *handler.TeacherHandler {
-	return handler.NewTeacherHandler(svc, handler.NewErrorMap())
+func newTeacherHandlerWithMocks() *TeacherHandler {
+	return NewTeacherHandler(&mockTeacherSvc{}, NewErrorMap())
 }
 
 func withChiID(r *http.Request, id string) *http.Request {
@@ -95,7 +94,7 @@ func is500Error(rr *httptest.ResponseRecorder) bool {
 // ---------------------------------------------------------------------------
 
 func TestTeacherHandler_GetTeacherByID_InvalidID(t *testing.T) {
-	h := newHandler(&mockTeacherSvc{})
+	h := newTeacherHandlerWithMocks()
 	req := httptest.NewRequest(http.MethodGet, "/teachers/abc", nil)
 	req = withChiID(req, "abc")
 	rr := httptest.NewRecorder()
@@ -108,12 +107,12 @@ func TestTeacherHandler_GetTeacherByID_InvalidID(t *testing.T) {
 }
 
 func TestTeacherHandler_GetTeacherByID_NotFound(t *testing.T) {
-	svc := &mockTeacherSvc{
+	h := newTeacherHandlerWithMocks()
+	h.teacherSvc = &mockTeacherSvc{
 		getByIDFn: func(id int64) (*model.TeacherDetails, error) {
 			return nil, httpx.ErrNotFound
 		},
 	}
-	h := newHandler(svc)
 	req := httptest.NewRequest(http.MethodGet, "/teachers/1", nil)
 	req = withChiID(req, "1")
 	rr := httptest.NewRecorder()
@@ -126,11 +125,11 @@ func TestTeacherHandler_GetTeacherByID_NotFound(t *testing.T) {
 }
 
 func TestTeacherHandler_GetTeacherByID_Success(t *testing.T) {
+	h := newTeacherHandlerWithMocks()
 	teacher := &model.TeacherDetails{ID: 1, Name: "John Doe"}
-	svc := &mockTeacherSvc{
+	h.teacherSvc = &mockTeacherSvc{
 		getByIDFn: func(id int64) (*model.TeacherDetails, error) { return teacher, nil },
 	}
-	h := newHandler(svc)
 	req := httptest.NewRequest(http.MethodGet, "/teachers/1", nil)
 	req = withChiID(req, "1")
 	rr := httptest.NewRecorder()
@@ -150,12 +149,12 @@ func TestTeacherHandler_GetTeacherByID_Success(t *testing.T) {
 }
 
 func TestTeacherHandler_GetTeacherByID_ServiceUnknownError(t *testing.T) {
-	svc := &mockTeacherSvc{
+	h := newTeacherHandlerWithMocks()
+	h.teacherSvc = &mockTeacherSvc{
 		getByIDFn: func(id int64) (*model.TeacherDetails, error) {
 			return nil, errors.New("db error")
 		},
 	}
-	h := newHandler(svc)
 	req := httptest.NewRequest(http.MethodGet, "/teachers/1", nil)
 	req = withChiID(req, "1")
 	rr := httptest.NewRecorder()
@@ -169,13 +168,13 @@ func TestTeacherHandler_GetTeacherByID_ServiceUnknownError(t *testing.T) {
 
 func TestTeacherHandler_GetTeacherByID_MustPassCorrectIDToService(t *testing.T) {
 	var capturedID *int64
-	svc := &mockTeacherSvc{
+	h := newTeacherHandlerWithMocks()
+	h.teacherSvc = &mockTeacherSvc{
 		getByIDFn: func(id int64) (*model.TeacherDetails, error) {
 			capturedID = &id
 			return &model.TeacherDetails{ID: id, Name: "John Doe"}, nil
 		},
 	}
-	h := newHandler(svc)
 	req := httptest.NewRequest(http.MethodGet, "/teachers/42", nil)
 	req = withChiID(req, "42")
 	rr := httptest.NewRecorder()
@@ -195,7 +194,7 @@ func TestTeacherHandler_GetTeacherByID_MustPassCorrectIDToService(t *testing.T) 
 // ---------------------------------------------------------------------------
 
 func TestTeacherHandler_DeleteTeacher_InvalidID(t *testing.T) {
-	h := newHandler(&mockTeacherSvc{})
+	h := newTeacherHandlerWithMocks()
 	req := httptest.NewRequest(http.MethodDelete, "/teachers/xyz", nil)
 	req = withChiID(req, "xyz")
 	rr := httptest.NewRecorder()
@@ -208,7 +207,7 @@ func TestTeacherHandler_DeleteTeacher_InvalidID(t *testing.T) {
 }
 
 func TestTeacherHandler_DeleteTeacher_Success(t *testing.T) {
-	h := newHandler(&mockTeacherSvc{})
+	h := newTeacherHandlerWithMocks()
 	req := httptest.NewRequest(http.MethodDelete, "/teachers/1", nil)
 	req = withChiID(req, "1")
 	rr := httptest.NewRecorder()
@@ -221,12 +220,12 @@ func TestTeacherHandler_DeleteTeacher_Success(t *testing.T) {
 }
 
 func TestTeacherHandler_DeleteTeacher_ServiceUnknownError(t *testing.T) {
-	svc := &mockTeacherSvc{
+	h := newTeacherHandlerWithMocks()
+	h.teacherSvc = &mockTeacherSvc{
 		deleteFn: func(id int64) error {
 			return errors.New("unknown error")
 		},
 	}
-	h := newHandler(svc)
 	req := httptest.NewRequest(http.MethodDelete, "/teachers/1", nil)
 	req = withChiID(req, "1")
 	rr := httptest.NewRecorder()
@@ -240,13 +239,13 @@ func TestTeacherHandler_DeleteTeacher_ServiceUnknownError(t *testing.T) {
 
 func TestTeacherHandler_DeleteTeacher_MustPassCorrectIDToService(t *testing.T) {
 	var capturedID *int64
-	svc := &mockTeacherSvc{
+	h := newTeacherHandlerWithMocks()
+	h.teacherSvc = &mockTeacherSvc{
 		deleteFn: func(id int64) error {
 			capturedID = &id
 			return nil
 		},
 	}
-	h := newHandler(svc)
 	req := httptest.NewRequest(http.MethodDelete, "/teachers/99", nil)
 	req = withChiID(req, "99")
 	rr := httptest.NewRecorder()
@@ -262,12 +261,12 @@ func TestTeacherHandler_DeleteTeacher_MustPassCorrectIDToService(t *testing.T) {
 }
 
 func TestTeacherHandler_DeleteTeacher_NotFound(t *testing.T) {
-	svc := &mockTeacherSvc{
+	h := newTeacherHandlerWithMocks()
+	h.teacherSvc = &mockTeacherSvc{
 		deleteFn: func(id int64) error {
 			return service.ErrNotFound
 		},
 	}
-	h := newHandler(svc)
 	req := httptest.NewRequest(http.MethodDelete, "/teachers/123", nil)
 	req = withChiID(req, "123")
 	rr := httptest.NewRecorder()
@@ -297,7 +296,7 @@ func newValidNewTeacher() *model.NewTeacher {
 }
 
 func TestTeacherHandler_CreateTeacher_InvalidBody(t *testing.T) {
-	h := newHandler(&mockTeacherSvc{})
+	h := newTeacherHandlerWithMocks()
 	req := httptest.NewRequest(http.MethodPost, "/teachers", bytes.NewBufferString(`{invalid json`))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -313,7 +312,7 @@ func TestTeacherHandler_CreateTeacher_Success(t *testing.T) {
 	body := newValidNewTeacher()
 	b, _ := json.Marshal(body)
 
-	h := newHandler(&mockTeacherSvc{})
+	h := newTeacherHandlerWithMocks()
 	req := httptest.NewRequest(http.MethodPost, "/teachers", bytes.NewBuffer(b))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -326,12 +325,12 @@ func TestTeacherHandler_CreateTeacher_Success(t *testing.T) {
 }
 
 func TestTeacherHandler_CreateTeacher_ServiceUnknownError(t *testing.T) {
-	svc := &mockTeacherSvc{
+	h := newTeacherHandlerWithMocks()
+	h.teacherSvc = &mockTeacherSvc{
 		createFn: func(t *model.NewTeacher) error {
 			return errors.New("db error")
 		},
 	}
-	h := newHandler(svc)
 	body := newValidNewTeacher()
 	b, _ := json.Marshal(body)
 	req := httptest.NewRequest(http.MethodPost, "/teachers", bytes.NewBuffer(b))
@@ -346,7 +345,7 @@ func TestTeacherHandler_CreateTeacher_ServiceUnknownError(t *testing.T) {
 }
 
 func TestTeacherHandler_CreateTeacher_MissingRequiredField(t *testing.T) {
-	h := newHandler(&mockTeacherSvc{})
+	h := newTeacherHandlerWithMocks()
 	requiredFields := []string{
 		"username", "password", "name", "dateOfBirth", "gender", "subjectID",
 		"hireDate", "workingStatus",
@@ -384,12 +383,12 @@ func TestTeacherHandler_CreateTeacher_MissingRequiredField(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestTeacherHandler_GetTeachers_Success(t *testing.T) {
-	svc := &mockTeacherSvc{
+	h := newTeacherHandlerWithMocks()
+	h.teacherSvc = &mockTeacherSvc{
 		listFn: func(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error) {
 			return []model.TeacherDetails{{ID: 1, Name: "Alice"}}, 1, nil
 		},
 	}
-	h := newHandler(svc)
 	req := httptest.NewRequest(http.MethodGet, "/teachers?page=1&pageSize=10", nil)
 	rr := httptest.NewRecorder()
 
@@ -408,12 +407,12 @@ func TestTeacherHandler_GetTeachers_Success(t *testing.T) {
 }
 
 func TestTeacherHandler_GetTeachers_ServiceError(t *testing.T) {
-	svc := &mockTeacherSvc{
+	h := newTeacherHandlerWithMocks()
+	h.teacherSvc = &mockTeacherSvc{
 		listFn: func(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error) {
 			return nil, 0, errors.New("db error")
 		},
 	}
-	h := newHandler(svc)
 	req := httptest.NewRequest(http.MethodGet, "/teachers", nil)
 	rr := httptest.NewRecorder()
 

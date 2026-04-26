@@ -12,7 +12,7 @@ import (
 	"github.com/go-chi/render"
 )
 
-type TeacherSvc interface {
+type teacherSvc interface {
 	CreateTeacher(newTeacher *model.NewTeacher) error
 	GetTeacherByID(teacherID int64) (*model.TeacherDetails, error)
 	UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error
@@ -21,11 +21,11 @@ type TeacherSvc interface {
 }
 
 type TeacherHandler struct {
-	teacherSvc TeacherSvc
+	teacherSvc teacherSvc
 	errMap     httpx.APIErrorMap
 }
 
-func NewTeacherHandler(teacherSvc TeacherSvc, errMap httpx.APIErrorMap) *TeacherHandler {
+func NewTeacherHandler(teacherSvc teacherSvc, errMap httpx.APIErrorMap) *TeacherHandler {
 	return &TeacherHandler{teacherSvc: teacherSvc, errMap: errMap}
 }
 
