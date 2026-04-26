@@ -25,4 +25,4 @@ prod:
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up --build -d
 
 dev/down_volumes:
-	docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.dev down -v
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.dev down -v
