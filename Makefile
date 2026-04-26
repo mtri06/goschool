@@ -10,6 +10,9 @@ dev/logs:
 dev/stop:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.dev stop
 
+dev/volume_down:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.dev down -v
+
 unit_test:
 	go test ./...
 
@@ -24,5 +27,3 @@ test/stop:
 prod:
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up --build -d
 
-dev/down_volumes:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.dev down -v

@@ -6,7 +6,7 @@ import (
 )
 
 func NewErrorMap() httpx.APIErrorMap {
-	return map[error]httpx.APIError{
+	return map[error]*httpx.APIError{
 		service.ErrValidationFailed: httpx.ErrBadRequest,
 		service.ErrNotFound:         httpx.ErrNotFound,
 		service.ErrUnauthorized:     httpx.ErrUnauthorized,

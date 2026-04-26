@@ -29,7 +29,7 @@ type appError interface {
 }
 
 // ApiErrorMap is a map of standard errors to their corresponding ApiError.
-type APIErrorMap map[error]APIError
+type APIErrorMap map[error]*APIError
 
 func (e *APIError) WithMsg(msg string) *APIError {
 	return &APIError{
@@ -93,61 +93,61 @@ func RenderError(w http.ResponseWriter, r *http.Request, errMap APIErrorMap, err
 }
 
 var (
-	ErrBadRequest = APIError{
+	ErrBadRequest = &APIError{
 		Type:   "bad_request",
 		Msg:    "Bad request",
 		Status: http.StatusBadRequest,
 	}
 
-	ErrValidationFailed = APIError{
+	ErrValidationFailed = &APIError{
 		Type:   "validation_failed",
 		Msg:    "Validation failed",
 		Status: http.StatusBadRequest,
 	}
 
-	ErrInvalidBody = APIError{
+	ErrInvalidBody = &APIError{
 		Type:   "invalid_body",
 		Msg:    "Invalid request body",
 		Status: http.StatusBadRequest,
 	}
 
-	ErrInvalidQuery = APIError{
+	ErrInvalidQuery = &APIError{
 		Type:   "invalid_query",
 		Msg:    "Invalid query",
 		Status: http.StatusBadRequest,
 	}
 
-	ErrInvalidParam = APIError{
+	ErrInvalidParam = &APIError{
 		Type:   "invalid_param",
 		Msg:    "Invalid URL parameter",
 		Status: http.StatusBadRequest,
 	}
 
-	ErrUnauthorized = APIError{
+	ErrUnauthorized = &APIError{
 		Type:   "unauthorized",
 		Msg:    "Unauthorized",
 		Status: http.StatusUnauthorized,
 	}
 
-	ErrForbidden = APIError{
+	ErrForbidden = &APIError{
 		Type:   "forbidden",
 		Msg:    "Forbidden",
 		Status: http.StatusForbidden,
 	}
 
-	ErrConflict = APIError{
+	ErrConflict = &APIError{
 		Type:   "conflict",
 		Msg:    "Conflict",
 		Status: http.StatusConflict,
 	}
 
-	ErrNotFound = APIError{
+	ErrNotFound = &APIError{
 		Type:   "not_found",
 		Msg:    "Resource not found",
 		Status: http.StatusNotFound,
 	}
 
-	ErrUnknownInternal = APIError{
+	ErrUnknownInternal = &APIError{
 		Type:   "internal_error",
 		Msg:    "An internal error has occurred",
 		Status: http.StatusInternalServerError,

@@ -16,12 +16,12 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockTeacherUserRepo struct {
-	emailExistsFn func(email string) (bool, error)
+	emailExistsFn func(email string, excludeIDs ...int64) (bool, error)
 }
 
-func (m *mockTeacherUserRepo) EmailExists(email string) (bool, error) {
+func (m *mockTeacherUserRepo) EmailExists(email string, excludeIDs ...int64) (bool, error) {
 	if m.emailExistsFn != nil {
-		return m.emailExistsFn(email)
+		return m.emailExistsFn(email, excludeIDs...)
 	}
 	return false, nil
 }
@@ -593,7 +593,7 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 			id:    1,
 			input: func() *model.UpdateTeacher { u := validUpdateTeacher(); u.Email = &email; return u }(),
 			userRepo: &mockTeacherUserRepo{
-				emailExistsFn: func(email string) (bool, error) { return true, nil },
+				emailExistsFn: func(email string, excludeIDs ...int64) (bool, error) { return true, nil },
 			},
 			wantErr: ErrValidationFailed,
 		},
@@ -602,7 +602,7 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 			id:    1,
 			input: func() *model.UpdateTeacher { u := validUpdateTeacher(); u.Email = &email; return u }(),
 			userRepo: &mockTeacherUserRepo{
-				emailExistsFn: func(email string) (bool, error) { return false, dbErr },
+				emailExistsFn: func(email string, excludeIDs ...int64) (bool, error) { return false, dbErr },
 			},
 			wantErr: dbErr,
 		},
@@ -612,7 +612,7 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.userRepo == nil {
 				tc.userRepo = &mockTeacherUserRepo{
-					emailExistsFn: func(email string) (bool, error) { return false, nil },
+					emailExistsFn: func(email string, excludeIDs ...int64) (bool, error) { return false, nil },
 				}
 			}
 			if tc.teacherRepo == nil {

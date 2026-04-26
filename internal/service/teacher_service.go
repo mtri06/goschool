@@ -10,7 +10,7 @@ import (
 )
 
 type teacherSvcUserRepo interface {
-	EmailExists(email string) (bool, error)
+	EmailExists(email string, excludeIDs ...int64) (bool, error)
 }
 
 type userSvcTeacherRepo interface {
@@ -157,7 +157,7 @@ func (s *TeacherService) UpdateTeacher(teacherID int64, update *model.UpdateTeac
 	if update.Email != nil {
 		email := strings.ToLower(*update.Email)
 		update.Email = &email
-		exists, err := s.userRepo.EmailExists(email)
+		exists, err := s.userRepo.EmailExists(email, teacherID)
 		if err != nil {
 			return fmt.Errorf("failed to check if email exists: %w", err)
 		}

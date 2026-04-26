@@ -7,12 +7,10 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"testing"
 	"time"
 
 	"goschool/internal/service"
-	"goschool/pkg/httpx"
 	"goschool/pkg/model"
 
 	"github.com/go-chi/chi/v5"
@@ -75,20 +73,6 @@ func withChiID(r *http.Request, id string) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
 }
 
-func is500Error(rr *httptest.ResponseRecorder) bool {
-	var payload httpx.APIError
-	if err := json.NewDecoder(rr.Body).Decode(&payload); err != nil {
-		return false
-	}
-	if payload.Status != http.StatusInternalServerError {
-		return false
-	}
-	if !reflect.DeepEqual(payload, httpx.ErrUnknownInternal) {
-		return false
-	}
-	return rr.Code == http.StatusInternalServerError
-}
-
 // ---------------------------------------------------------------------------
 // GetTeacherByID
 // ---------------------------------------------------------------------------
@@ -110,7 +94,7 @@ func TestTeacherHandler_GetTeacherByID_NotFound(t *testing.T) {
 	h := newTeacherHandlerWithMocks()
 	h.teacherSvc = &mockTeacherSvc{
 		getByIDFn: func(id int64) (*model.TeacherDetails, error) {
-			return nil, httpx.ErrNotFound
+			return nil, service.ErrNotFound
 		},
 	}
 	req := httptest.NewRequest(http.MethodGet, "/teachers/1", nil)
@@ -233,7 +217,7 @@ func TestTeacherHandler_DeleteTeacher_ServiceUnknownError(t *testing.T) {
 	h.DeleteTeacher(rr, req)
 
 	if !is500Error(rr) {
-		t.Errorf("expected 500 with unknown internal error payload, got %d", rr.Code)
+		t.Errorf("expected 500 with unknown internal error payload, got %v", rr)
 	}
 }
 
