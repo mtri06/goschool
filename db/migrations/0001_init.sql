@@ -56,7 +56,7 @@ CREATE TABLE class_teachers (
   end_date            DATE        NOT NULL,
   is_homeroom_teacher BOOLEAN     NOT NULL DEFAULT FALSE,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at          TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE enrollments (
@@ -67,8 +67,8 @@ CREATE TABLE enrollments (
   start_date DATE        NOT NULL,
   end_date   DATE        NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-)
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE tokens (
 	id 							SERIAL 			PRIMARY KEY,
@@ -89,8 +89,6 @@ ALTER TABLE user_teachers ADD CONSTRAINT fk_user_teachers_subject_id FOREIGN KEY
 REFERENCES subjects(id) ON DELETE NO ACTION;
 ALTER TABLE user_students ADD CONSTRAINT fk_user_students_user_id FOREIGN KEY (user_id)
 REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE user_students ADD CONSTRAINT fk_user_students_class_id FOREIGN KEY (class_id)
-REFERENCES class(id) ON DELETE NO ACTION;
 ALTER TABLE class_teachers ADD CONSTRAINT fk_class_teachers_teacher_id FOREIGN KEY (teacher_id)
 REFERENCES user_teachers(user_id) ON DELETE NO ACTION;
 ALTER TABLE class_teachers ADD CONSTRAINT fk_class_teachers_class_id FOREIGN KEY (class_id)
@@ -118,7 +116,6 @@ DROP INDEX IF EXISTS idx_enrollments_student_class_year;
 ALTER TABLE class_teachers DROP CONSTRAINT fk_class_teachers_subject_id;
 ALTER TABLE class_teachers DROP CONSTRAINT fk_class_teachers_class_id;
 ALTER TABLE class_teachers DROP CONSTRAINT fk_class_teachers_teacher_id;
-ALTER TABLE user_students DROP CONSTRAINT fk_user_students_class_id;
 ALTER TABLE user_students DROP CONSTRAINT fk_user_students_user_id;
 ALTER TABLE user_teachers DROP CONSTRAINT fk_user_teachers_subject_id;
 ALTER TABLE user_teachers DROP CONSTRAINT fk_user_teachers_user_id;
