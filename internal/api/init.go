@@ -20,15 +20,23 @@ import (
 func InitServer() http.Handler {
 	env.Init()
 	logger.Init()
-	return NewServer(env.Env.DBURL)
+	return NewServer(db.DBConfig{
+		Host:        env.Env.PgHost,
+		Port:        env.Env.PgPort,
+		User:        env.Env.PgUser,
+		Password:    env.Env.PgPassword,
+		Name:        env.Env.PgDBName,
+		SSLMode:     env.Env.PgSSLMode,
+		ConnTimeout: env.Env.PgConnTimeout,
+	})
 }
 
 // NewServer wires the full application given a database URL.
 // env.Env must be populated before calling this (InitServer handles that for production;
 // integration tests set env.Env fields directly).
-func NewServer(dbURL string) http.Handler {
+func NewServer(dbCfg db.DBConfig) http.Handler {
 	// Connect to Postgres
-	dbClient := db.ConnectPostgres(dbURL)
+	dbClient := db.ConnectPostgres(dbCfg)
 	log.Info().Msg("Connect to Postgres successfully")
 
 	// Migrate database
