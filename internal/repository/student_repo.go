@@ -62,8 +62,8 @@ func (r *StudentRepository) CreateStudent(newStudent *model.NewStudent) error {
 func (r *StudentRepository) GetStudentByID(id int64) (*model.StudentDetails, error) {
 	var student model.StudentDetails
 	err := r.db.Get(&student, `
-		SELECT u.id, u.username, u.email, u.role, u.name, u.date_of_birth, u.gender,
-		       s.admission_date, s.graduated, s.graduated_date, s.class_id, s.created_at, s.updated_at
+		SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
+		       s.admission_date, s.graduated, s.graduated_date, s.class_id
 		FROM users u
 		JOIN user_students s ON s.user_id = u.id
 		WHERE u.id = $1 AND u.role = $2`, id, constant.RoleStudent)
@@ -168,8 +168,8 @@ func (r *StudentRepository) ListStudents(
 	go func() {
 		defer wg.Done()
 		q := fmt.Sprintf(`
-			SELECT u.id, u.username, u.email, u.role, u.name, u.date_of_birth, u.gender,
-			       s.admission_date, s.graduated, s.graduated_date, s.class_id, s.created_at, s.updated_at
+			SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
+			       s.admission_date, s.graduated, s.graduated_date, s.class_id
 			FROM users u
 			JOIN user_students s ON s.user_id = u.id
 			%s

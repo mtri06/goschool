@@ -97,8 +97,8 @@ func (r *TeacherRepository) ListTeachers(
 	go func() {
 		defer wg.Done()
 		q := fmt.Sprintf(`
-			SELECT u.id, u.username, u.email, u.role, u.name, u.date_of_birth, u.gender,
-			       t.subject_id, t.hire_date, t.working_status, t.created_at, t.updated_at
+			SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
+			       t.subject_id, t.hire_date, t.working_status
 			FROM users u
 			JOIN user_teachers t ON t.user_id = u.id
 			%s
@@ -125,8 +125,8 @@ func (r *TeacherRepository) ListTeachers(
 func (r *TeacherRepository) GetTeacherByID(id int64) (*model.TeacherDetails, error) {
 	var teacher model.TeacherDetails
 	err := r.db.Get(&teacher, `
-		SELECT u.id, u.username, u.email, u.role, u.name, u.date_of_birth, u.gender,
-		       t.subject_id, t.hire_date, t.working_status, t.created_at, t.updated_at
+		SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
+		       t.subject_id, t.hire_date, t.working_status
 		FROM users u
 		JOIN user_teachers t ON t.user_id = u.id
 		WHERE u.id = $1 AND u.role = 'teacher'`, id)
