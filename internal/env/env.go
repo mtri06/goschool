@@ -14,19 +14,19 @@ import (
 type envConfig struct {
 	Environment string `validate:"required,oneof=dev test prod"`
 
-	PgHost        string        `validate:"required"`
-	PgPort        int           `validate:"required,min=1"`
-	PgUser        string        `validate:"required"`
-	PgPassword    string        `validate:"required"`
-	PgDBName      string        `validate:"required"`
-	PgSSLMode     string        `validate:"required,oneof=disable allow prefer require verify-ca verify-full"`
-	PgConnTimeout time.Duration ``
+	PgHost        string `validate:"required"`
+	PgPort        int    `validate:"required,min=1"`
+	PgUser        string `validate:"required"`
+	PgPassword    string `validate:"required"`
+	PgDBName      string `validate:"required"`
+	PgSSLMode     string `validate:"required,oneof=disable allow prefer require verify-ca verify-full"`
+	PgConnTimeout time.Duration
 
-	AllowedOrigins []string `validate:"required,min=1,dive,required"`
+	AllowedOrigins []string
 
-	JWTSecret             string `validate:"required"`
-	JWTAccessExpiresMins  int    `validate:"min=1"`
-	JWTRefreshExpiresDays int    `validate:"min=1"`
+	JWTSecret         string        `validate:"required"`
+	JWTAccessExpires  time.Duration `validate:"required"`
+	JWTRefreshExpires time.Duration `validate:"required"`
 
 	AdminUsername string `validate:"required"`
 	AdminPassword string `validate:"required"`
@@ -54,9 +54,9 @@ func Init(envFiles ...string) {
 
 		AllowedOrigins: strings.Split(envOrPanic("CORS_ALLOWED_ORIGINS"), ","),
 
-		JWTSecret:             envOrPanic("JWT_SECRET"),
-		JWTAccessExpiresMins:  envIntOrDefault("JWT_ACCESS_EXPIRES_MINS", 15),
-		JWTRefreshExpiresDays: envIntOrDefault("JWT_REFRESH_EXPIRES_DAYS", 7),
+		JWTSecret:         envOrPanic("JWT_SECRET"),
+		JWTAccessExpires:  envDurationOrPanic("JWT_ACCESS_EXPIRES"),
+		JWTRefreshExpires: envDurationOrPanic("JWT_REFRESH_EXPIRES"),
 
 		AdminUsername: envOrPanic("ADMIN_USERNAME"),
 		AdminPassword: envOrPanic("ADMIN_PASSWORD"),
@@ -105,6 +105,18 @@ func envIntOrDefault(key string, defaultVal int) int {
 		log.Panic().Msgf("%v env is not a valid integer: %v", key, err)
 	}
 	return intVal
+}
+
+func envDurationOrPanic(key string) time.Duration {
+	val := os.Getenv(key)
+	if val == "" {
+		log.Panic().Msgf("%v env is not set", key)
+	}
+	duration, err := time.ParseDuration(val)
+	if err != nil {
+		log.Panic().Msgf("%v env is not a valid duration: %v", key, err)
+	}
+	return duration
 }
 
 func envDurationOrDefault(key string, defaultVal time.Duration) time.Duration {

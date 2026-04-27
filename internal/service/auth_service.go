@@ -74,7 +74,7 @@ func (s *AuthService) Login(username, password string) (*model.AuthTokens, error
 		Body:      refreshToken,
 		UserID:    user.ID,
 		Type:      constant.TokenTypeRefresh,
-		ExpiresAt: time.Now().Add(time.Duration(env.Env.JWTRefreshExpiresDays) * 24 * time.Hour),
+		ExpiresAt: time.Now().Add(env.Env.JWTRefreshExpires),
 	}
 	if err := s.tokenRepo.CreateToken(token); err != nil {
 		return nil, fmt.Errorf("failed to store refresh token: %w", err)
@@ -197,7 +197,7 @@ func (s *AuthService) RefreshTokens(accessToken, refreshToken string) (*model.Au
 		Body:      newRefreshToken,
 		UserID:    user.ID,
 		Type:      constant.TokenTypeRefresh,
-		ExpiresAt: time.Now().Add(time.Duration(env.Env.JWTRefreshExpiresDays) * 24 * time.Hour),
+		ExpiresAt: time.Now().Add(env.Env.JWTRefreshExpires),
 	}
 	if err := s.tokenRepo.CreateToken(newRToken); err != nil {
 		return nil, fmt.Errorf("failed to store refresh token: %w", err)
@@ -215,7 +215,7 @@ func generateAccessToken(userID int64, userRole string) (string, error) {
 		"sub":  userID,
 		"role": userRole,
 		"iat":  now.Unix(),
-		"exp":  now.Add(time.Duration(env.Env.JWTAccessExpiresMins) * time.Minute).Unix(),
+		"exp":  now.Add(env.Env.JWTAccessExpires).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

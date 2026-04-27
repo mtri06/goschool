@@ -21,8 +21,8 @@ const testJWTSecret = "test-secret-key-for-unit-tests"
 
 func TestMain(m *testing.M) {
 	env.Env.JWTSecret = testJWTSecret
-	env.Env.JWTAccessExpiresMins = 15
-	env.Env.JWTRefreshExpiresDays = 7
+	env.Env.JWTAccessExpires = 15 * time.Minute
+	env.Env.JWTRefreshExpires = 7 * 24 * time.Hour
 	os.Exit(m.Run())
 }
 

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"time"
 
 	"goschool/internal/env"
 	"goschool/pkg/constant"
@@ -43,7 +42,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Name:     constant.CookieAccessToken,
 		Value:    tokens.AccessToken,
 		Path:     "/",
-		MaxAge:   env.Env.JWTRefreshExpiresDays * 24 * int(time.Hour.Seconds()), // Match refresh token cookies expiry
+		MaxAge:   int(env.Env.JWTAccessExpires.Seconds()), // Match access token cookies expiry
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
@@ -54,7 +53,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Name:     constant.CookieRefreshToken,
 		Value:    tokens.RefreshToken,
 		Path:     "/",
-		MaxAge:   env.Env.JWTRefreshExpiresDays * 24 * int(time.Hour.Seconds()),
+		MaxAge:   int(env.Env.JWTRefreshExpires.Seconds()), // Match refresh token cookies expiry
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
@@ -121,7 +120,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		Name:     constant.CookieAccessToken,
 		Value:    tokens.AccessToken,
 		Path:     "/",
-		MaxAge:   env.Env.JWTRefreshExpiresDays * 24 * int(time.Hour.Seconds()), // Match refresh token cookies expiry
+		MaxAge:   int(env.Env.JWTAccessExpires.Seconds()), // Match access token cookies expiry
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
@@ -130,7 +129,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		Name:     constant.CookieRefreshToken,
 		Value:    tokens.RefreshToken,
 		Path:     "/",
-		MaxAge:   env.Env.JWTRefreshExpiresDays * 24 * int(time.Hour.Seconds()),
+		MaxAge:   int(env.Env.JWTRefreshExpires.Seconds()), // Match refresh token cookies expiry
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
