@@ -9,7 +9,7 @@ type NewStudent struct {
 	Name          string    `json:"name" validate:"required"`
 	DateOfBirth   time.Time `json:"dateOfBirth" validate:"required"`
 	Gender        string    `json:"gender" validate:"required"`
-	ClassID       *int64    `json:"classId"`
+	ClassID       *int    `json:"classId"`
 	AdmissionDate time.Time `json:"admissionDate" validate:"required"`
 }
 
@@ -22,11 +22,11 @@ type UpdateStudent struct {
 }
 
 type StudentDetailsClass struct {
-	ID   int64  `json:"id"`
+	ID   int  `json:"id"`
 	Name string `json:"name"`
 }
 type StudentDetails struct {
-	ID            int64                `json:"id" db:"id"`
+	ID            int                `json:"id" db:"id"`
 	Username      string               `json:"username" db:"username"`
 	Email         *string              `json:"email" db:"email"`
 	Name          string               `json:"name" db:"name"`

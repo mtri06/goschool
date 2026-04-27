@@ -10,20 +10,20 @@ import (
 )
 
 type teacherSvcUserRepo interface {
-	EmailExists(email string, excludeIDs ...int64) (bool, error)
+	EmailExists(email string, excludeIDs ...int) (bool, error)
 }
 
 type userSvcTeacherRepo interface {
 	CreateTeacher(newTeacher *model.NewTeacher) error
-	GetTeacherByID(id int64) (*model.TeacherDetails, error)
-	TeacherExists(id int64) (bool, error)
-	UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error
-	DeleteTeacher(teacherID int64) error
+	GetTeacherByID(id int) (*model.TeacherDetails, error)
+	TeacherExists(id int) (bool, error)
+	UpdateTeacher(teacherID int, update *model.UpdateTeacher) error
+	DeleteTeacher(teacherID int) error
 	ListTeachers(p *repo.Pagination, userFilters repo.Filters, teacherFilters repo.Filters) ([]model.TeacherDetails, int, error)
 }
 
 type teacherSvcSubjectRepo interface {
-	Exists(id int64) (bool, error)
+	Exists(id int) (bool, error)
 }
 
 type teacherSvcUserSvc interface {
@@ -86,7 +86,7 @@ func (s *TeacherService) CreateTeacher(newTeacher *model.NewTeacher) error {
 	return nil
 }
 
-func (s *TeacherService) GetTeacherByID(teacherID int64) (*model.TeacherDetails, error) {
+func (s *TeacherService) GetTeacherByID(teacherID int) (*model.TeacherDetails, error) {
 	teacher, err := s.teacherRepo.GetTeacherByID(teacherID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get teacher: %w", err)
@@ -127,7 +127,7 @@ func (s *TeacherService) ListTeachers(page, pageSize int, name, email, workingSt
 	return s.teacherRepo.ListTeachers(pagination, userFilters, teacherFilters)
 }
 
-func (s *TeacherService) UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error {
+func (s *TeacherService) UpdateTeacher(teacherID int, update *model.UpdateTeacher) error {
 	if !slices.Contains(allGenders, update.Gender) {
 		return NewError(fmt.Sprintf("gender must be one of %v", allGenders), "invalid_gender", ErrValidationFailed)
 	}
@@ -172,7 +172,7 @@ func (s *TeacherService) UpdateTeacher(teacherID int64, update *model.UpdateTeac
 	return nil
 }
 
-func (s *TeacherService) DeleteTeacher(teacherID int64) error {
+func (s *TeacherService) DeleteTeacher(teacherID int) error {
 	exists, err := s.teacherRepo.TeacherExists(teacherID)
 	if err != nil {
 		return fmt.Errorf("failed to check if teacher exists: %w", err)

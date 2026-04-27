@@ -14,10 +14,10 @@ import (
 
 type teacherSvc interface {
 	CreateTeacher(newTeacher *model.NewTeacher) error
-	GetTeacherByID(teacherID int64) (*model.TeacherDetails, error)
-	UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error
+	GetTeacherByID(teacherID int) (*model.TeacherDetails, error)
+	UpdateTeacher(teacherID int, update *model.UpdateTeacher) error
 	ListTeachers(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error)
-	DeleteTeacher(teacherID int64) error
+	DeleteTeacher(teacherID int) error
 }
 
 type TeacherHandler struct {
@@ -46,7 +46,7 @@ func (h *TeacherHandler) CreateTeacher(w http.ResponseWriter, r *http.Request) {
 
 func (h *TeacherHandler) GetTeacherByID(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid teacher id"))
 		return
@@ -63,7 +63,7 @@ func (h *TeacherHandler) GetTeacherByID(w http.ResponseWriter, r *http.Request) 
 
 func (h *TeacherHandler) DeleteTeacher(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid user id"))
 		return
@@ -79,7 +79,7 @@ func (h *TeacherHandler) DeleteTeacher(w http.ResponseWriter, r *http.Request) {
 
 func (h *TeacherHandler) UpdateTeacher(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid teacher id"))
 		return

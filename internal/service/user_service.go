@@ -31,7 +31,7 @@ var (
 type userSvcUserRepo interface {
 	UsernameExists(username string) (bool, error)
 	CreateUser(user *model.User) error
-	EmailExists(email string, excludeIDs ...int64) (bool, error)
+	EmailExists(email string, excludeIDs ...int) (bool, error)
 }
 
 type UserService struct {

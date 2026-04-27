@@ -15,7 +15,7 @@ func NewSubjectRepository(db *sqlx.DB) *SubjectRepository {
 }
 
 // Exists checks if a subject with the given ID exists in the database
-func (r *SubjectRepository) Exists(id int64) (bool, error) {
+func (r *SubjectRepository) Exists(id int) (bool, error) {
 	var exists bool
 	err := r.db.Get(&exists, "SELECT EXISTS(SELECT 1 FROM subjects WHERE id = $1)", id)
 	if err != nil {

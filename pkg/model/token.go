@@ -3,9 +3,9 @@ package model
 import "time"
 
 type Token struct {
-	ID            int64     `json:"id" db:"id"`
+	ID            int     `json:"id" db:"id"`
 	Body          string    `json:"body" db:"body"`
-	UserID        int64     `json:"user_id" db:"user_id"`
+	UserID        int     `json:"user_id" db:"user_id"`
 	Type          string    `json:"type" db:"type"`
 	ExpiresAt     time.Time `json:"expires_at" db:"expires_at"`
 	IsRevoked     bool      `json:"is_revoked" db:"is_revoked"`

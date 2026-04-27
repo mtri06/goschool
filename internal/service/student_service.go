@@ -11,20 +11,20 @@ import (
 )
 
 type studentSvcUserRepo interface {
-	EmailExists(email string, excludeIDs ...int64) (bool, error)
+	EmailExists(email string, excludeIDs ...int) (bool, error)
 }
 
 type studentSvcStudentRepo interface {
 	CreateStudent(newStudent *model.NewStudent) error
-	GetStudentByID(id int64) (*model.StudentDetails, error)
-	StudentExists(id int64) (bool, error)
-	UpdateStudent(studentID int64, update *model.UpdateStudent) error
-	DeleteStudent(studentID int64) error
+	GetStudentByID(id int) (*model.StudentDetails, error)
+	StudentExists(id int) (bool, error)
+	UpdateStudent(studentID int, update *model.UpdateStudent) error
+	DeleteStudent(studentID int) error
 	ListStudents(p *repo.Pagination, userFilters repo.Filters, enrollmentFilters repo.Filters) ([]model.StudentDetails, int, error)
 }
 
 type studentSvcClassRepo interface {
-	ClassExists(id int64) (bool, error)
+	ClassExists(id int) (bool, error)
 }
 
 type studentSvcUserSvc interface {
@@ -85,7 +85,7 @@ func (s *StudentService) CreateStudent(newStudent *model.NewStudent) error {
 	return nil
 }
 
-func (s *StudentService) GetStudentByID(studentID int64) (*model.StudentDetails, error) {
+func (s *StudentService) GetStudentByID(studentID int) (*model.StudentDetails, error) {
 	student, err := s.studentRepo.GetStudentByID(studentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get student: %w", err)
@@ -96,7 +96,7 @@ func (s *StudentService) GetStudentByID(studentID int64) (*model.StudentDetails,
 	return student, nil
 }
 
-func (s *StudentService) ListStudents(page, pageSize int, classID *int64, graduated *bool, name, email string) ([]model.StudentDetails, int, error) {
+func (s *StudentService) ListStudents(page, pageSize int, classID *int, graduated *bool, name, email string) ([]model.StudentDetails, int, error) {
 	if page < 1 {
 		page = constant.DefaultPage
 	}
@@ -128,7 +128,7 @@ func (s *StudentService) ListStudents(page, pageSize int, classID *int64, gradua
 	return s.studentRepo.ListStudents(pagination, userFilters, studentFilters)
 }
 
-func (s *StudentService) UpdateStudent(studentID int64, update *model.UpdateStudent) error {
+func (s *StudentService) UpdateStudent(studentID int, update *model.UpdateStudent) error {
 	if !slices.Contains(allGenders, update.Gender) {
 		return NewError(fmt.Sprintf("gender must be one of %v", allGenders), "invalid_gender", ErrValidationFailed)
 	}
@@ -159,7 +159,7 @@ func (s *StudentService) UpdateStudent(studentID int64, update *model.UpdateStud
 	return nil
 }
 
-func (s *StudentService) DeleteStudent(studentID int64) error {
+func (s *StudentService) DeleteStudent(studentID int) error {
 	exists, err := s.studentRepo.StudentExists(studentID)
 	if err != nil {
 		return fmt.Errorf("failed to check if student exists: %w", err)

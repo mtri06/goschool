@@ -22,10 +22,10 @@ import (
 
 type mockTeacherSvc struct {
 	createFn  func(t *model.NewTeacher) error
-	getByIDFn func(id int64) (*model.TeacherDetails, error)
-	updateFn  func(id int64, u *model.UpdateTeacher) error
+	getByIDFn func(id int) (*model.TeacherDetails, error)
+	updateFn  func(id int, u *model.UpdateTeacher) error
 	listFn    func(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error)
-	deleteFn  func(id int64) error
+	deleteFn  func(id int) error
 }
 
 func (m *mockTeacherSvc) CreateTeacher(t *model.NewTeacher) error {
@@ -34,13 +34,13 @@ func (m *mockTeacherSvc) CreateTeacher(t *model.NewTeacher) error {
 	}
 	return nil
 }
-func (m *mockTeacherSvc) GetTeacherByID(id int64) (*model.TeacherDetails, error) {
+func (m *mockTeacherSvc) GetTeacherByID(id int) (*model.TeacherDetails, error) {
 	if m.getByIDFn != nil {
 		return m.getByIDFn(id)
 	}
 	return nil, nil
 }
-func (m *mockTeacherSvc) UpdateTeacher(id int64, u *model.UpdateTeacher) error {
+func (m *mockTeacherSvc) UpdateTeacher(id int, u *model.UpdateTeacher) error {
 	if m.updateFn != nil {
 		return m.updateFn(id, u)
 	}
@@ -52,7 +52,7 @@ func (m *mockTeacherSvc) ListTeachers(page, pageSize int, name, email, workingSt
 	}
 	return []model.TeacherDetails{}, 0, nil
 }
-func (m *mockTeacherSvc) DeleteTeacher(id int64) error {
+func (m *mockTeacherSvc) DeleteTeacher(id int) error {
 	if m.deleteFn != nil {
 		return m.deleteFn(id)
 	}
@@ -93,7 +93,7 @@ func TestTeacherHandler_GetTeacherByID_InvalidID(t *testing.T) {
 func TestTeacherHandler_GetTeacherByID_NotFound(t *testing.T) {
 	h := newTeacherHandlerWithMocks()
 	h.teacherSvc = &mockTeacherSvc{
-		getByIDFn: func(id int64) (*model.TeacherDetails, error) {
+		getByIDFn: func(id int) (*model.TeacherDetails, error) {
 			return nil, service.ErrNotFound
 		},
 	}
@@ -112,7 +112,7 @@ func TestTeacherHandler_GetTeacherByID_Success(t *testing.T) {
 	h := newTeacherHandlerWithMocks()
 	teacher := &model.TeacherDetails{ID: 1, Name: "John Doe"}
 	h.teacherSvc = &mockTeacherSvc{
-		getByIDFn: func(id int64) (*model.TeacherDetails, error) { return teacher, nil },
+		getByIDFn: func(id int) (*model.TeacherDetails, error) { return teacher, nil },
 	}
 	req := httptest.NewRequest(http.MethodGet, "/teachers/1", nil)
 	req = withChiID(req, "1")
@@ -135,7 +135,7 @@ func TestTeacherHandler_GetTeacherByID_Success(t *testing.T) {
 func TestTeacherHandler_GetTeacherByID_ServiceUnknownError(t *testing.T) {
 	h := newTeacherHandlerWithMocks()
 	h.teacherSvc = &mockTeacherSvc{
-		getByIDFn: func(id int64) (*model.TeacherDetails, error) {
+		getByIDFn: func(id int) (*model.TeacherDetails, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -151,10 +151,10 @@ func TestTeacherHandler_GetTeacherByID_ServiceUnknownError(t *testing.T) {
 }
 
 func TestTeacherHandler_GetTeacherByID_MustPassCorrectIDToService(t *testing.T) {
-	var capturedID *int64
+	var capturedID *int
 	h := newTeacherHandlerWithMocks()
 	h.teacherSvc = &mockTeacherSvc{
-		getByIDFn: func(id int64) (*model.TeacherDetails, error) {
+		getByIDFn: func(id int) (*model.TeacherDetails, error) {
 			capturedID = &id
 			return &model.TeacherDetails{ID: id, Name: "John Doe"}, nil
 		},
@@ -206,7 +206,7 @@ func TestTeacherHandler_DeleteTeacher_Success(t *testing.T) {
 func TestTeacherHandler_DeleteTeacher_ServiceUnknownError(t *testing.T) {
 	h := newTeacherHandlerWithMocks()
 	h.teacherSvc = &mockTeacherSvc{
-		deleteFn: func(id int64) error {
+		deleteFn: func(id int) error {
 			return errors.New("unknown error")
 		},
 	}
@@ -222,10 +222,10 @@ func TestTeacherHandler_DeleteTeacher_ServiceUnknownError(t *testing.T) {
 }
 
 func TestTeacherHandler_DeleteTeacher_MustPassCorrectIDToService(t *testing.T) {
-	var capturedID *int64
+	var capturedID *int
 	h := newTeacherHandlerWithMocks()
 	h.teacherSvc = &mockTeacherSvc{
-		deleteFn: func(id int64) error {
+		deleteFn: func(id int) error {
 			capturedID = &id
 			return nil
 		},
@@ -247,7 +247,7 @@ func TestTeacherHandler_DeleteTeacher_MustPassCorrectIDToService(t *testing.T) {
 func TestTeacherHandler_DeleteTeacher_NotFound(t *testing.T) {
 	h := newTeacherHandlerWithMocks()
 	h.teacherSvc = &mockTeacherSvc{
-		deleteFn: func(id int64) error {
+		deleteFn: func(id int) error {
 			return service.ErrNotFound
 		},
 	}

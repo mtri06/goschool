@@ -14,10 +14,10 @@ import (
 
 type studentSvc interface {
 	CreateStudent(newStudent *model.NewStudent) error
-	GetStudentByID(studentID int64) (*model.StudentDetails, error)
-	ListStudents(page, pageSize int, classID *int64, graduated *bool, name, email string) ([]model.StudentDetails, int, error)
-	UpdateStudent(studentID int64, update *model.UpdateStudent) error
-	DeleteStudent(studentID int64) error
+	GetStudentByID(studentID int) (*model.StudentDetails, error)
+	ListStudents(page, pageSize int, classID *int, graduated *bool, name, email string) ([]model.StudentDetails, int, error)
+	UpdateStudent(studentID int, update *model.UpdateStudent) error
+	DeleteStudent(studentID int) error
 }
 
 type StudentHandler struct {
@@ -46,7 +46,7 @@ func (h *StudentHandler) CreateStudent(w http.ResponseWriter, r *http.Request) {
 
 func (h *StudentHandler) GetStudentByID(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid student id"))
 		return
@@ -82,9 +82,9 @@ func (h *StudentHandler) GetStudents(w http.ResponseWriter, r *http.Request) {
 		pageSize = ps
 	}
 
-	var classID *int64
+	var classID *int
 	if classIDStr := r.URL.Query().Get("classId"); classIDStr != "" {
-		id, err := strconv.ParseInt(classIDStr, 10, 64)
+		id, err := strconv.Atoi(classIDStr)
 		if err != nil {
 			httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidQuery.WithMsg("invalid class id"))
 			return
@@ -123,7 +123,7 @@ func (h *StudentHandler) GetStudents(w http.ResponseWriter, r *http.Request) {
 
 func (h *StudentHandler) UpdateStudent(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid student id"))
 		return
@@ -145,7 +145,7 @@ func (h *StudentHandler) UpdateStudent(w http.ResponseWriter, r *http.Request) {
 
 func (h *StudentHandler) DeleteStudent(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid student id"))
 		return

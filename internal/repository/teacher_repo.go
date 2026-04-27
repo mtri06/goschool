@@ -30,7 +30,7 @@ func (r *TeacherRepository) CreateTeacher(newTeacher *model.NewTeacher) error {
 	}
 	defer tx.Rollback()
 
-	var userID int64
+	var userID int
 	err = tx.QueryRow(`
 		INSERT INTO users (username, password, email, role, name, date_of_birth, gender)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -115,7 +115,7 @@ func (r *TeacherRepository) ListTeachers(
 
 		for rows.Next() {
 			var t model.TeacherDetails
-			var subjectID *int64
+			var subjectID *int
 			var subjectName *string
 
 			if err := rows.Scan(
@@ -148,9 +148,9 @@ func (r *TeacherRepository) ListTeachers(
 }
 
 // GetTeacherByID retrieves a teacher with full details by user ID.
-func (r *TeacherRepository) GetTeacherByID(id int64) (*model.TeacherDetails, error) {
+func (r *TeacherRepository) GetTeacherByID(id int) (*model.TeacherDetails, error) {
 	var t model.TeacherDetails
-	var subjectID *int64
+	var subjectID *int
 	var subjectName *string
 	err := r.db.QueryRow(`
 		SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
@@ -177,7 +177,7 @@ func (r *TeacherRepository) GetTeacherByID(id int64) (*model.TeacherDetails, err
 }
 
 // TeacherExists checks if a teacher with the given user ID exists.
-func (r *TeacherRepository) TeacherExists(id int64) (bool, error) {
+func (r *TeacherRepository) TeacherExists(id int) (bool, error) {
 	var exists bool
 	err := r.db.Get(&exists, `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND role = 'teacher')`, id)
 	if err != nil {
@@ -187,7 +187,7 @@ func (r *TeacherRepository) TeacherExists(id int64) (bool, error) {
 }
 
 // UpdateTeacher updates user and user_teacher fields for the given teacher ID in a single transaction.
-func (r *TeacherRepository) UpdateTeacher(teacherID int64, update *model.UpdateTeacher) error {
+func (r *TeacherRepository) UpdateTeacher(teacherID int, update *model.UpdateTeacher) error {
 	if update == nil {
 		return fmt.Errorf("update cannot be nil")
 	}
@@ -222,7 +222,7 @@ func (r *TeacherRepository) UpdateTeacher(teacherID int64, update *model.UpdateT
 }
 
 // DeleteTeacher removes the teacher and their associated user in a single transaction.
-func (r *TeacherRepository) DeleteTeacher(teacherID int64) error {
+func (r *TeacherRepository) DeleteTeacher(teacherID int) error {
 	tx, err := r.db.Beginx()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)

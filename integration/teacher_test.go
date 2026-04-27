@@ -54,7 +54,7 @@ func TestTeacher_CRUD(t *testing.T) {
 	}
 
 	// Find the created teacher ID
-	var teacherID int64
+	var teacherID int
 	for _, tc := range listBody.Teachers {
 		if tc.Name == "Integration Teacher" {
 			teacherID = tc.ID
@@ -147,6 +147,6 @@ func TestTeacher_GetByID_NotFound(t *testing.T) {
 // helpers
 // ---------------------------------------------------------------------------
 
-func itoa(n int64) string {
-	return strconv.FormatInt(n, 10)
+func itoa(n int) string {
+	return strconv.Itoa(n)
 }

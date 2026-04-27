@@ -19,10 +19,10 @@ import (
 
 type mockStudentSvc struct {
 	createFn  func(s *model.NewStudent) error
-	getByIDFn func(id int64) (*model.StudentDetails, error)
-	listFn    func(page, pageSize int, classID *int64, name, email string) ([]model.StudentDetails, int, error)
-	updateFn  func(id int64, u *model.UpdateStudent) error
-	deleteFn  func(id int64) error
+	getByIDFn func(id int) (*model.StudentDetails, error)
+	listFn    func(page, pageSize int, classID *int, name, email string) ([]model.StudentDetails, int, error)
+	updateFn  func(id int, u *model.UpdateStudent) error
+	deleteFn  func(id int) error
 }
 
 func (m *mockStudentSvc) CreateStudent(s *model.NewStudent) error {
@@ -31,25 +31,25 @@ func (m *mockStudentSvc) CreateStudent(s *model.NewStudent) error {
 	}
 	return nil
 }
-func (m *mockStudentSvc) GetStudentByID(id int64) (*model.StudentDetails, error) {
+func (m *mockStudentSvc) GetStudentByID(id int) (*model.StudentDetails, error) {
 	if m.getByIDFn != nil {
 		return m.getByIDFn(id)
 	}
 	return nil, nil
 }
-func (m *mockStudentSvc) ListStudents(page, pageSize int, classID *int64, graduated *bool, name, email string) ([]model.StudentDetails, int, error) {
+func (m *mockStudentSvc) ListStudents(page, pageSize int, classID *int, graduated *bool, name, email string) ([]model.StudentDetails, int, error) {
 	if m.listFn != nil {
 		return m.listFn(page, pageSize, classID, name, email)
 	}
 	return []model.StudentDetails{}, 0, nil
 }
-func (m *mockStudentSvc) UpdateStudent(id int64, u *model.UpdateStudent) error {
+func (m *mockStudentSvc) UpdateStudent(id int, u *model.UpdateStudent) error {
 	if m.updateFn != nil {
 		return m.updateFn(id, u)
 	}
 	return nil
 }
-func (m *mockStudentSvc) DeleteStudent(id int64) error {
+func (m *mockStudentSvc) DeleteStudent(id int) error {
 	if m.deleteFn != nil {
 		return m.deleteFn(id)
 	}
@@ -204,7 +204,7 @@ func TestStudentHandler_GetStudentByID_InvalidID(t *testing.T) {
 func TestStudentHandler_GetStudentByID_NotFound(t *testing.T) {
 	h := newStudentHandlerWithMocks()
 	h.studentSvc = &mockStudentSvc{
-		getByIDFn: func(id int64) (*model.StudentDetails, error) { return nil, service.ErrNotFound },
+		getByIDFn: func(id int) (*model.StudentDetails, error) { return nil, service.ErrNotFound },
 	}
 	req := httptest.NewRequest(http.MethodGet, "/students/1", nil)
 	req = withChiID(req, "1")
@@ -221,7 +221,7 @@ func TestStudentHandler_GetStudentByID_Success(t *testing.T) {
 	student := &model.StudentDetails{ID: 1, Name: "John Student"}
 	h := newStudentHandlerWithMocks()
 	h.studentSvc = &mockStudentSvc{
-		getByIDFn: func(id int64) (*model.StudentDetails, error) { return student, nil },
+		getByIDFn: func(id int) (*model.StudentDetails, error) { return student, nil },
 	}
 	req := httptest.NewRequest(http.MethodGet, "/students/1", nil)
 	req = withChiID(req, "1")
@@ -244,7 +244,7 @@ func TestStudentHandler_GetStudentByID_Success(t *testing.T) {
 func TestStudentHandler_GetStudentByID_ServiceError(t *testing.T) {
 	h := newStudentHandlerWithMocks()
 	h.studentSvc = &mockStudentSvc{
-		getByIDFn: func(id int64) (*model.StudentDetails, error) { return nil, errors.New("db error") },
+		getByIDFn: func(id int) (*model.StudentDetails, error) { return nil, errors.New("db error") },
 	}
 	req := httptest.NewRequest(http.MethodGet, "/students/1", nil)
 	req = withChiID(req, "1")
@@ -258,10 +258,10 @@ func TestStudentHandler_GetStudentByID_ServiceError(t *testing.T) {
 }
 
 func TestStudentHandler_GetStudentByID_PassesCorrectID(t *testing.T) {
-	var capturedID *int64
+	var capturedID *int
 	h := newStudentHandlerWithMocks()
 	h.studentSvc = &mockStudentSvc{
-		getByIDFn: func(id int64) (*model.StudentDetails, error) {
+		getByIDFn: func(id int) (*model.StudentDetails, error) {
 			capturedID = &id
 			return &model.StudentDetails{ID: id}, nil
 		},
@@ -332,7 +332,7 @@ func TestStudentHandler_GetStudents_InvalidClassID(t *testing.T) {
 func TestStudentHandler_GetStudents_ServiceError(t *testing.T) {
 	h := newStudentHandlerWithMocks()
 	h.studentSvc = &mockStudentSvc{
-		listFn: func(page, pageSize int, classID *int64, name, email string) ([]model.StudentDetails, int, error) {
+		listFn: func(page, pageSize int, classID *int, name, email string) ([]model.StudentDetails, int, error) {
 			return nil, 0, errors.New("db error")
 		},
 	}
@@ -347,11 +347,11 @@ func TestStudentHandler_GetStudents_ServiceError(t *testing.T) {
 }
 
 func TestStudentHandler_GetStudents_PassesQueryParams(t *testing.T) {
-	var capturedClassID *int64
+	var capturedClassID *int
 	var capturedName, capturedEmail string
 	h := newStudentHandlerWithMocks()
 	h.studentSvc = &mockStudentSvc{
-		listFn: func(page, pageSize int, classID *int64, name, email string) ([]model.StudentDetails, int, error) {
+		listFn: func(page, pageSize int, classID *int, name, email string) ([]model.StudentDetails, int, error) {
 			capturedClassID = classID
 			capturedName = name
 			capturedEmail = email
@@ -427,7 +427,7 @@ func TestStudentHandler_UpdateStudent_NotFound(t *testing.T) {
 	b, _ := json.Marshal(newValidUpdateStudent())
 	h := newStudentHandlerWithMocks()
 	h.studentSvc = &mockStudentSvc{
-		updateFn: func(id int64, u *model.UpdateStudent) error { return service.ErrNotFound },
+		updateFn: func(id int, u *model.UpdateStudent) error { return service.ErrNotFound },
 	}
 	req := httptest.NewRequest(http.MethodPut, "/students/1", bytes.NewBuffer(b))
 	req.Header.Set("Content-Type", "application/json")
@@ -445,7 +445,7 @@ func TestStudentHandler_UpdateStudent_ServiceError(t *testing.T) {
 	b, _ := json.Marshal(newValidUpdateStudent())
 	h := newStudentHandlerWithMocks()
 	h.studentSvc = &mockStudentSvc{
-		updateFn: func(id int64, u *model.UpdateStudent) error { return errors.New("db error") },
+		updateFn: func(id int, u *model.UpdateStudent) error { return errors.New("db error") },
 	}
 	req := httptest.NewRequest(http.MethodPut, "/students/1", bytes.NewBuffer(b))
 	req.Header.Set("Content-Type", "application/json")
@@ -520,7 +520,7 @@ func TestStudentHandler_DeleteStudent_Success(t *testing.T) {
 func TestStudentHandler_DeleteStudent_NotFound(t *testing.T) {
 	h := newStudentHandlerWithMocks()
 	h.studentSvc = &mockStudentSvc{
-		deleteFn: func(id int64) error { return service.ErrNotFound },
+		deleteFn: func(id int) error { return service.ErrNotFound },
 	}
 	req := httptest.NewRequest(http.MethodDelete, "/students/1", nil)
 	req = withChiID(req, "1")
@@ -536,7 +536,7 @@ func TestStudentHandler_DeleteStudent_NotFound(t *testing.T) {
 func TestStudentHandler_DeleteStudent_ServiceError(t *testing.T) {
 	h := newStudentHandlerWithMocks()
 	h.studentSvc = &mockStudentSvc{
-		deleteFn: func(id int64) error { return errors.New("db error") },
+		deleteFn: func(id int) error { return errors.New("db error") },
 	}
 	req := httptest.NewRequest(http.MethodDelete, "/students/1", nil)
 	req = withChiID(req, "1")
@@ -550,10 +550,10 @@ func TestStudentHandler_DeleteStudent_ServiceError(t *testing.T) {
 }
 
 func TestStudentHandler_DeleteStudent_PassesCorrectID(t *testing.T) {
-	var capturedID *int64
+	var capturedID *int
 	h := newStudentHandlerWithMocks()
 	h.studentSvc = &mockStudentSvc{
-		deleteFn: func(id int64) error {
+		deleteFn: func(id int) error {
 			capturedID = &id
 			return nil
 		},

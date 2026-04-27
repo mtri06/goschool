@@ -19,7 +19,7 @@ func NewUserRepository(db *sqlx.DB) *UserRepository {
 
 // EmailExists checks if a user with the given email exists in the database.
 // Optional excludeIDs can be passed to exclude specific user IDs from the check.
-func (r *UserRepository) EmailExists(email string, excludeIDs ...int64) (bool, error) {
+func (r *UserRepository) EmailExists(email string, excludeIDs ...int) (bool, error) {
 	var exists bool
 	var err error
 	if len(excludeIDs) > 0 {
@@ -49,7 +49,7 @@ func (r *UserRepository) UsernameExists(username string) (bool, error) {
 }
 
 // GetByID retrieves a user by ID
-func (r *UserRepository) GetByID(id int64) (*model.User, error) {
+func (r *UserRepository) GetByID(id int) (*model.User, error) {
 	var user model.User
 	err := r.db.Get(&user, `SELECT * FROM users WHERE id = $1`, id)
 	if err != nil {

@@ -31,7 +31,7 @@ func (r *TokenRepository) GetByBody(body string) (*model.Token, error) {
 }
 
 // MarkUsed sets is_used = true for the token with the given ID
-func (r *TokenRepository) MarkUsed(id int64) error {
+func (r *TokenRepository) MarkUsed(id int) error {
 	_, err := r.db.Exec(`UPDATE tokens SET is_used = true WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("failed to mark token as used: %w", err)
@@ -40,7 +40,7 @@ func (r *TokenRepository) MarkUsed(id int64) error {
 }
 
 // BlacklistUserTokens sets is_blacklisted = true for all active refresh tokens of a user
-func (r *TokenRepository) BlacklistUserTokens(userID int64) error {
+func (r *TokenRepository) BlacklistUserTokens(userID int) error {
 	_, err := r.db.Exec(`
 		UPDATE tokens SET is_blacklisted = true
 		WHERE user_id = $1 AND type = 'refresh_token' AND is_blacklisted = false

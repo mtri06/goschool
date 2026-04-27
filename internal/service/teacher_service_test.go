@@ -16,10 +16,10 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockTeacherUserRepo struct {
-	emailExistsFn func(email string, excludeIDs ...int64) (bool, error)
+	emailExistsFn func(email string, excludeIDs ...int) (bool, error)
 }
 
-func (m *mockTeacherUserRepo) EmailExists(email string, excludeIDs ...int64) (bool, error) {
+func (m *mockTeacherUserRepo) EmailExists(email string, excludeIDs ...int) (bool, error) {
 	if m.emailExistsFn != nil {
 		return m.emailExistsFn(email, excludeIDs...)
 	}
@@ -28,10 +28,10 @@ func (m *mockTeacherUserRepo) EmailExists(email string, excludeIDs ...int64) (bo
 
 type mockTeacherRepo struct {
 	createFn        func(t *model.NewTeacher) error
-	getByIDFn       func(id int64) (*model.TeacherDetails, error)
-	teacherExistsFn func(id int64) (bool, error)
-	updateFn        func(id int64, u *model.UpdateTeacher) error
-	deleteFn        func(id int64) error
+	getByIDFn       func(id int) (*model.TeacherDetails, error)
+	teacherExistsFn func(id int) (bool, error)
+	updateFn        func(id int, u *model.UpdateTeacher) error
+	deleteFn        func(id int) error
 	listFn          func(
 		p *repository.Pagination, userFilter repository.Filters, teacherFilter repository.Filters,
 	) ([]model.TeacherDetails, int, error)
@@ -43,25 +43,25 @@ func (m *mockTeacherRepo) CreateTeacher(t *model.NewTeacher) error {
 	}
 	return nil
 }
-func (m *mockTeacherRepo) GetTeacherByID(id int64) (*model.TeacherDetails, error) {
+func (m *mockTeacherRepo) GetTeacherByID(id int) (*model.TeacherDetails, error) {
 	if m.getByIDFn != nil {
 		return m.getByIDFn(id)
 	}
 	return nil, nil
 }
-func (m *mockTeacherRepo) TeacherExists(id int64) (bool, error) {
+func (m *mockTeacherRepo) TeacherExists(id int) (bool, error) {
 	if m.teacherExistsFn != nil {
 		return m.teacherExistsFn(id)
 	}
 	return false, nil
 }
-func (m *mockTeacherRepo) UpdateTeacher(id int64, u *model.UpdateTeacher) error {
+func (m *mockTeacherRepo) UpdateTeacher(id int, u *model.UpdateTeacher) error {
 	if m.updateFn != nil {
 		return m.updateFn(id, u)
 	}
 	return nil
 }
-func (m *mockTeacherRepo) DeleteTeacher(id int64) error {
+func (m *mockTeacherRepo) DeleteTeacher(id int) error {
 	if m.deleteFn != nil {
 		return m.deleteFn(id)
 	}
@@ -77,10 +77,10 @@ func (m *mockTeacherRepo) ListTeachers(
 }
 
 type mockSubjectRepo struct {
-	existsFn func(id int64) (bool, error)
+	existsFn func(id int) (bool, error)
 }
 
-func (m *mockSubjectRepo) Exists(id int64) (bool, error) {
+func (m *mockSubjectRepo) Exists(id int) (bool, error) {
 	if m.existsFn != nil {
 		return m.existsFn(id)
 	}
@@ -149,7 +149,7 @@ func TestTeacherService_CreateTeacher_MustCallValidateUser(t *testing.T) {
 			return nil
 		},
 	}
-	svc.subjectRepo = &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return true, nil }}
+	svc.subjectRepo = &mockSubjectRepo{existsFn: func(id int) (bool, error) { return true, nil }}
 
 	err := svc.CreateTeacher(validNewTeacher())
 	if err != nil {
@@ -170,7 +170,7 @@ func TestTeacherService_PasswordMustBeHashedOnCreate(t *testing.T) {
 			return nil
 		},
 	}
-	svc.subjectRepo = &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return true, nil }}
+	svc.subjectRepo = &mockSubjectRepo{existsFn: func(id int) (bool, error) { return true, nil }}
 
 	err := svc.CreateTeacher(validNewTeacher())
 	if err != nil {
@@ -249,13 +249,13 @@ func TestTeacherService_CreateTeacher(t *testing.T) {
 		{
 			name:        "subject not found",
 			input:       validNewTeacher(),
-			subjectRepo: &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return false, nil }},
+			subjectRepo: &mockSubjectRepo{existsFn: func(id int) (bool, error) { return false, nil }},
 			wantErr:     ErrNotFound,
 		},
 		{
 			name:        "subject repo returns db error",
 			input:       validNewTeacher(),
-			subjectRepo: &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return false, dbErr }},
+			subjectRepo: &mockSubjectRepo{existsFn: func(id int) (bool, error) { return false, dbErr }},
 			wantErr:     dbErr,
 		},
 		{
@@ -270,7 +270,7 @@ func TestTeacherService_CreateTeacher(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.subjectRepo == nil {
 				// Subject exists by default
-				tc.subjectRepo = &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return true, nil }}
+				tc.subjectRepo = &mockSubjectRepo{existsFn: func(id int) (bool, error) { return true, nil }}
 			}
 			if tc.userRepo == nil {
 				tc.userRepo = &mockTeacherUserRepo{}
@@ -306,7 +306,7 @@ func TestTeacherService_GetTeacherByID(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		id          int64
+		id          int
 		teacherRepo *mockTeacherRepo
 		wantErr     error
 		wantTeacher *model.TeacherDetails
@@ -314,7 +314,7 @@ func TestTeacherService_GetTeacherByID(t *testing.T) {
 		{
 			name: "success",
 			id:   1445,
-			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int64) (*model.TeacherDetails, error) {
+			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int) (*model.TeacherDetails, error) {
 				return teacher, nil
 			}},
 			wantErr:     nil,
@@ -323,7 +323,7 @@ func TestTeacherService_GetTeacherByID(t *testing.T) {
 		{
 			name: "teacher not found",
 			id:   99,
-			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int64) (*model.TeacherDetails, error) {
+			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int) (*model.TeacherDetails, error) {
 				return nil, nil
 			}},
 			wantErr:     ErrNotFound,
@@ -332,7 +332,7 @@ func TestTeacherService_GetTeacherByID(t *testing.T) {
 		{
 			name: "db error",
 			id:   1,
-			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int64) (*model.TeacherDetails, error) {
+			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int) (*model.TeacherDetails, error) {
 				return nil, dbErr
 			}},
 			wantErr:     dbErr,
@@ -357,14 +357,14 @@ func TestTeacherService_GetTeacherByID(t *testing.T) {
 }
 
 func TestTeacherService_GetTeacherByID_MustPassCorrectID(t *testing.T) {
-	passedIDs := []int64{789, 456, 123, 34, 890}
+	passedIDs := []int{789, 456, 123, 34, 890}
 
 	for _, id := range passedIDs {
-		var capturedID *int64
+		var capturedID *int
 		teacher := &model.TeacherDetails{ID: id, Name: "Jane Doe"}
 
 		svc := newTeacherServiceWithMocks()
-		svc.teacherRepo = &mockTeacherRepo{getByIDFn: func(id int64) (*model.TeacherDetails, error) {
+		svc.teacherRepo = &mockTeacherRepo{getByIDFn: func(id int) (*model.TeacherDetails, error) {
 			capturedID = &id
 			return teacher, nil
 		}}
@@ -388,7 +388,7 @@ func TestTeacherService_DeleteTeacher(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		id          int64
+		id          int
 		teacherRepo *mockTeacherRepo
 		wantErr     error
 	}{
@@ -396,8 +396,8 @@ func TestTeacherService_DeleteTeacher(t *testing.T) {
 			name: "success",
 			id:   33,
 			teacherRepo: &mockTeacherRepo{
-				teacherExistsFn: func(id int64) (bool, error) { return true, nil },
-				deleteFn:        func(id int64) error { return nil },
+				teacherExistsFn: func(id int) (bool, error) { return true, nil },
+				deleteFn:        func(id int) error { return nil },
 			},
 			wantErr: nil,
 		},
@@ -405,7 +405,7 @@ func TestTeacherService_DeleteTeacher(t *testing.T) {
 			name: "teacher not found",
 			id:   99,
 			teacherRepo: &mockTeacherRepo{
-				teacherExistsFn: func(id int64) (bool, error) { return false, nil },
+				teacherExistsFn: func(id int) (bool, error) { return false, nil },
 			},
 			wantErr: ErrNotFound,
 		},
@@ -413,7 +413,7 @@ func TestTeacherService_DeleteTeacher(t *testing.T) {
 			name: "exists check error",
 			id:   1,
 			teacherRepo: &mockTeacherRepo{
-				teacherExistsFn: func(id int64) (bool, error) { return false, dbErr },
+				teacherExistsFn: func(id int) (bool, error) { return false, dbErr },
 			},
 			wantErr: dbErr,
 		},
@@ -421,8 +421,8 @@ func TestTeacherService_DeleteTeacher(t *testing.T) {
 			name: "delete error",
 			id:   1,
 			teacherRepo: &mockTeacherRepo{
-				teacherExistsFn: func(id int64) (bool, error) { return true, nil },
-				deleteFn:        func(id int64) error { return dbErr },
+				teacherExistsFn: func(id int) (bool, error) { return true, nil },
+				deleteFn:        func(id int) error { return dbErr },
 			},
 			wantErr: dbErr,
 		},
@@ -446,19 +446,19 @@ func TestTeacherService_DeleteTeacher(t *testing.T) {
 }
 
 func TestTeacherService_DeleteTeacher_MustPassCorrectID(t *testing.T) {
-	passedIDs := []int64{11, 595, 34596, 2, 1348}
+	passedIDs := []int{11, 595, 34596, 2, 1348}
 
 	for _, id := range passedIDs {
-		var existCapturedID *int64
-		var deleteCapturedID *int64
+		var existCapturedID *int
+		var deleteCapturedID *int
 
 		svc := newTeacherServiceWithMocks()
 		svc.teacherRepo = &mockTeacherRepo{
-			teacherExistsFn: func(id int64) (bool, error) {
+			teacherExistsFn: func(id int) (bool, error) {
 				existCapturedID = &id
 				return true, nil
 			},
-			deleteFn: func(id int64) error {
+			deleteFn: func(id int) error {
 				deleteCapturedID = &id
 				return nil
 			},
@@ -487,7 +487,7 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		id          int64
+		id          int
 		input       *model.UpdateTeacher
 		teacherRepo *mockTeacherRepo
 		subjectRepo *mockSubjectRepo
@@ -561,7 +561,7 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 			id:    99,
 			input: validUpdateTeacher(),
 			teacherRepo: &mockTeacherRepo{
-				teacherExistsFn: func(id int64) (bool, error) { return false, nil },
+				teacherExistsFn: func(id int) (bool, error) { return false, nil },
 			},
 			wantErr: ErrNotFound,
 		},
@@ -570,7 +570,7 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 			id:    1,
 			input: validUpdateTeacher(),
 			teacherRepo: &mockTeacherRepo{
-				teacherExistsFn: func(id int64) (bool, error) { return false, dbErr },
+				teacherExistsFn: func(id int) (bool, error) { return false, dbErr },
 			},
 			wantErr: dbErr,
 		},
@@ -578,14 +578,14 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 			name:        "subject not found",
 			id:          1,
 			input:       validUpdateTeacher(),
-			subjectRepo: &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return false, nil }},
+			subjectRepo: &mockSubjectRepo{existsFn: func(id int) (bool, error) { return false, nil }},
 			wantErr:     ErrNotFound,
 		},
 		{
 			name:        "subject repo error",
 			id:          1,
 			input:       validUpdateTeacher(),
-			subjectRepo: &mockSubjectRepo{existsFn: func(id int64) (bool, error) { return false, dbErr }},
+			subjectRepo: &mockSubjectRepo{existsFn: func(id int) (bool, error) { return false, dbErr }},
 			wantErr:     dbErr,
 		},
 		{
@@ -593,7 +593,7 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 			id:    1,
 			input: func() *model.UpdateTeacher { u := validUpdateTeacher(); u.Email = &email; return u }(),
 			userRepo: &mockTeacherUserRepo{
-				emailExistsFn: func(email string, excludeIDs ...int64) (bool, error) { return true, nil },
+				emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return true, nil },
 			},
 			wantErr: ErrValidationFailed,
 		},
@@ -602,7 +602,7 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 			id:    1,
 			input: func() *model.UpdateTeacher { u := validUpdateTeacher(); u.Email = &email; return u }(),
 			userRepo: &mockTeacherUserRepo{
-				emailExistsFn: func(email string, excludeIDs ...int64) (bool, error) { return false, dbErr },
+				emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return false, dbErr },
 			},
 			wantErr: dbErr,
 		},
@@ -612,17 +612,17 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.userRepo == nil {
 				tc.userRepo = &mockTeacherUserRepo{
-					emailExistsFn: func(email string, excludeIDs ...int64) (bool, error) { return false, nil },
+					emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return false, nil },
 				}
 			}
 			if tc.teacherRepo == nil {
 				tc.teacherRepo = &mockTeacherRepo{
-					teacherExistsFn: func(id int64) (bool, error) { return true, nil },
+					teacherExistsFn: func(id int) (bool, error) { return true, nil },
 				}
 			}
 			if tc.subjectRepo == nil {
 				tc.subjectRepo = &mockSubjectRepo{
-					existsFn: func(id int64) (bool, error) { return true, nil },
+					existsFn: func(id int) (bool, error) { return true, nil },
 				}
 			}
 
@@ -640,25 +640,25 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 }
 
 func TestTeacherService_UpdateTeacher_MustPassCorrectID(t *testing.T) {
-	passedIDs := []int64{663, 345, 1334, 5777, 93843}
+	passedIDs := []int{663, 345, 1334, 5777, 93843}
 
 	for _, id := range passedIDs {
-		var teacherExistsCapturedID *int64
-		var updateCapturedID *int64
+		var teacherExistsCapturedID *int
+		var updateCapturedID *int
 
 		svc := newTeacherServiceWithMocks()
 		svc.teacherRepo = &mockTeacherRepo{
-			teacherExistsFn: func(id int64) (bool, error) {
+			teacherExistsFn: func(id int) (bool, error) {
 				teacherExistsCapturedID = &id
 				return true, nil
 			},
-			updateFn: func(id int64, u *model.UpdateTeacher) error {
+			updateFn: func(id int, u *model.UpdateTeacher) error {
 				updateCapturedID = &id
 				return nil
 			},
 		}
 		svc.subjectRepo = &mockSubjectRepo{
-			existsFn: func(id int64) (bool, error) { return true, nil },
+			existsFn: func(id int) (bool, error) { return true, nil },
 		}
 
 		err := svc.UpdateTeacher(id, validUpdateTeacher())

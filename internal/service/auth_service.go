@@ -18,15 +18,15 @@ import (
 
 type authSvcUserRepo interface {
 	GetByUsername(username string) (*model.User, error)
-	GetByID(id int64) (*model.User, error)
+	GetByID(id int) (*model.User, error)
 }
 
 type authSvcTokenRepo interface {
 	CreateToken(token *model.Token) error
 	RevokeByBody(body string) error
 	GetByBody(body string) (*model.Token, error)
-	MarkUsed(id int64) error
-	BlacklistUserTokens(userID int64) error
+	MarkUsed(id int) error
+	BlacklistUserTokens(userID int) error
 }
 
 type AuthService struct {
@@ -127,7 +127,7 @@ func (s *AuthService) RefreshTokens(accessToken, refreshToken string) (*model.Au
 		log.Warn().Msg("Access token 'sub' claim is missing or invalid")
 		return nil, ErrUnauthorized
 	}
-	userID := int64(subFloat)
+	userID := int(subFloat)
 
 	// Look up refresh token in DB
 	rToken, err := s.tokenRepo.GetByBody(refreshToken)
@@ -149,20 +149,20 @@ func (s *AuthService) RefreshTokens(accessToken, refreshToken string) (*model.Au
 	// Both tokens must belong to the same user
 	if rToken.UserID != userID {
 		log.Warn().
-			Int64("token_user_id", rToken.UserID).Int64("claims_user_id", userID).
+			Int("token_user_id", rToken.UserID).Int("claims_user_id", userID).
 			Msg("Refresh token user ID does not match access token claims")
 		return nil, ErrUnauthorized
 	}
 
 	// If blacklisted — hard reject
 	if rToken.IsBlacklisted {
-		log.Warn().Int64("user_id", userID).Msg("Attempt to use blacklisted refresh token")
+		log.Warn().Int("user_id", userID).Msg("Attempt to use blacklisted refresh token")
 		return nil, ErrUnauthorized
 	}
 
 	// If already used or revoked — token reuse attack: blacklist all user tokens
 	if rToken.IsUsed || rToken.IsRevoked {
-		log.Warn().Int64("user_id", userID).Msg("Attempt to reuse or use revoked refresh token")
+		log.Warn().Int("user_id", userID).Msg("Attempt to reuse or use revoked refresh token")
 		_ = s.tokenRepo.BlacklistUserTokens(userID)
 		return nil, ErrUnauthorized
 	}
@@ -178,7 +178,7 @@ func (s *AuthService) RefreshTokens(accessToken, refreshToken string) (*model.Au
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 	if user == nil {
-		log.Warn().Int64("user_id", userID).Msg("User not found")
+		log.Warn().Int("user_id", userID).Msg("User not found")
 		return nil, ErrNotFound
 	}
 
@@ -209,7 +209,7 @@ func (s *AuthService) RefreshTokens(accessToken, refreshToken string) (*model.Au
 	}, nil
 }
 
-func generateAccessToken(userID int64, userRole string) (string, error) {
+func generateAccessToken(userID int, userRole string) (string, error) {
 	now := time.Now()
 	claims := jwt.MapClaims{
 		"sub":  userID,

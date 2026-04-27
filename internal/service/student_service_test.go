@@ -14,10 +14,10 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockStudentUserRepo struct {
-	emailExistsFn func(email string, excludeIDs ...int64) (bool, error)
+	emailExistsFn func(email string, excludeIDs ...int) (bool, error)
 }
 
-func (m *mockStudentUserRepo) EmailExists(email string, excludeIDs ...int64) (bool, error) {
+func (m *mockStudentUserRepo) EmailExists(email string, excludeIDs ...int) (bool, error) {
 	if m.emailExistsFn != nil {
 		return m.emailExistsFn(email, excludeIDs...)
 	}
@@ -26,10 +26,10 @@ func (m *mockStudentUserRepo) EmailExists(email string, excludeIDs ...int64) (bo
 
 type mockStudentRepo struct {
 	createStudentFunc func(newStudent *model.NewStudent) error
-	getByIDFn         func(id int64) (*model.StudentDetails, error)
-	studentExistsFn   func(id int64) (bool, error)
-	updateStudentFn   func(id int64, u *model.UpdateStudent) error
-	deleteStudentFn   func(id int64) error
+	getByIDFn         func(id int) (*model.StudentDetails, error)
+	studentExistsFn   func(id int) (bool, error)
+	updateStudentFn   func(id int, u *model.UpdateStudent) error
+	deleteStudentFn   func(id int) error
 	listStudentsFn    func(p *repository.Pagination, uf repository.Filters, sf repository.Filters) ([]model.StudentDetails, int, error)
 }
 
@@ -39,25 +39,25 @@ func (m *mockStudentRepo) CreateStudent(newStudent *model.NewStudent) error {
 	}
 	return nil
 }
-func (m *mockStudentRepo) GetStudentByID(id int64) (*model.StudentDetails, error) {
+func (m *mockStudentRepo) GetStudentByID(id int) (*model.StudentDetails, error) {
 	if m.getByIDFn != nil {
 		return m.getByIDFn(id)
 	}
 	return nil, nil
 }
-func (m *mockStudentRepo) StudentExists(id int64) (bool, error) {
+func (m *mockStudentRepo) StudentExists(id int) (bool, error) {
 	if m.studentExistsFn != nil {
 		return m.studentExistsFn(id)
 	}
 	return true, nil
 }
-func (m *mockStudentRepo) UpdateStudent(id int64, u *model.UpdateStudent) error {
+func (m *mockStudentRepo) UpdateStudent(id int, u *model.UpdateStudent) error {
 	if m.updateStudentFn != nil {
 		return m.updateStudentFn(id, u)
 	}
 	return nil
 }
-func (m *mockStudentRepo) DeleteStudent(id int64) error {
+func (m *mockStudentRepo) DeleteStudent(id int) error {
 	if m.deleteStudentFn != nil {
 		return m.deleteStudentFn(id)
 	}
@@ -71,10 +71,10 @@ func (m *mockStudentRepo) ListStudents(p *repository.Pagination, uf repository.F
 }
 
 type mockStudentClassRepo struct {
-	classExistsFn func(id int64) (bool, error)
+	classExistsFn func(id int) (bool, error)
 }
 
-func (m *mockStudentClassRepo) ClassExists(id int64) (bool, error) {
+func (m *mockStudentClassRepo) ClassExists(id int) (bool, error) {
 	if m.classExistsFn != nil {
 		return m.classExistsFn(id)
 	}
@@ -253,17 +253,17 @@ func TestStudentService_GetStudentByID(t *testing.T) {
 	}{
 		{
 			name:        "found",
-			studentRepo: &mockStudentRepo{getByIDFn: func(id int64) (*model.StudentDetails, error) { return student, nil }},
+			studentRepo: &mockStudentRepo{getByIDFn: func(id int) (*model.StudentDetails, error) { return student, nil }},
 			wantStudent: student,
 		},
 		{
 			name:        "not found",
-			studentRepo: &mockStudentRepo{getByIDFn: func(id int64) (*model.StudentDetails, error) { return nil, nil }},
+			studentRepo: &mockStudentRepo{getByIDFn: func(id int) (*model.StudentDetails, error) { return nil, nil }},
 			wantErr:     ErrNotFound,
 		},
 		{
 			name:        "repo error",
-			studentRepo: &mockStudentRepo{getByIDFn: func(id int64) (*model.StudentDetails, error) { return nil, dbErr }},
+			studentRepo: &mockStudentRepo{getByIDFn: func(id int) (*model.StudentDetails, error) { return nil, dbErr }},
 			wantErr:     dbErr,
 		},
 	}
@@ -314,31 +314,31 @@ func TestStudentService_UpdateStudent(t *testing.T) {
 		{
 			name:        "student not found",
 			input:       validUpdateStudent(),
-			studentRepo: &mockStudentRepo{studentExistsFn: func(id int64) (bool, error) { return false, nil }},
+			studentRepo: &mockStudentRepo{studentExistsFn: func(id int) (bool, error) { return false, nil }},
 			wantErr:     ErrNotFound,
 		},
 		{
 			name:        "student exists check fails",
 			input:       validUpdateStudent(),
-			studentRepo: &mockStudentRepo{studentExistsFn: func(id int64) (bool, error) { return false, dbErr }},
+			studentRepo: &mockStudentRepo{studentExistsFn: func(id int) (bool, error) { return false, dbErr }},
 			wantErr:     dbErr,
 		},
 		{
 			name:     "email already exists",
 			input:    validUpdateStudent(),
-			userRepo: &mockStudentUserRepo{emailExistsFn: func(email string, excludeIDs ...int64) (bool, error) { return true, nil }},
+			userRepo: &mockStudentUserRepo{emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return true, nil }},
 			wantErr:  ErrValidationFailed,
 		},
 		{
 			name:     "email check fails",
 			input:    validUpdateStudent(),
-			userRepo: &mockStudentUserRepo{emailExistsFn: func(email string, excludeIDs ...int64) (bool, error) { return false, dbErr }},
+			userRepo: &mockStudentUserRepo{emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return false, dbErr }},
 			wantErr:  dbErr,
 		},
 		{
 			name:        "repo update fails",
 			input:       validUpdateStudent(),
-			studentRepo: &mockStudentRepo{updateStudentFn: func(id int64, u *model.UpdateStudent) error { return dbErr }},
+			studentRepo: &mockStudentRepo{updateStudentFn: func(id int, u *model.UpdateStudent) error { return dbErr }},
 			wantErr:     dbErr,
 		},
 		{
@@ -386,17 +386,17 @@ func TestStudentService_DeleteStudent(t *testing.T) {
 		},
 		{
 			name:        "student not found",
-			studentRepo: &mockStudentRepo{studentExistsFn: func(id int64) (bool, error) { return false, nil }},
+			studentRepo: &mockStudentRepo{studentExistsFn: func(id int) (bool, error) { return false, nil }},
 			wantErr:     ErrNotFound,
 		},
 		{
 			name:        "exists check fails",
-			studentRepo: &mockStudentRepo{studentExistsFn: func(id int64) (bool, error) { return false, dbErr }},
+			studentRepo: &mockStudentRepo{studentExistsFn: func(id int) (bool, error) { return false, dbErr }},
 			wantErr:     dbErr,
 		},
 		{
 			name:        "delete fails",
-			studentRepo: &mockStudentRepo{deleteStudentFn: func(id int64) error { return dbErr }},
+			studentRepo: &mockStudentRepo{deleteStudentFn: func(id int) error { return dbErr }},
 			wantErr:     dbErr,
 		},
 	}

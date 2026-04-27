@@ -30,7 +30,7 @@ func (r *StudentRepository) CreateStudent(newStudent *model.NewStudent) error {
 	}
 	defer tx.Rollback()
 
-	var userID int64
+	var userID int
 	err = tx.QueryRow(`
 		INSERT INTO users (username, password, email, role, name, date_of_birth, gender)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -59,9 +59,9 @@ func (r *StudentRepository) CreateStudent(newStudent *model.NewStudent) error {
 }
 
 // GetStudentByID retrieves a student with full details by user ID.
-func (r *StudentRepository) GetStudentByID(id int64) (*model.StudentDetails, error) {
+func (r *StudentRepository) GetStudentByID(id int) (*model.StudentDetails, error) {
 	var s model.StudentDetails
-	var classID *int64
+	var classID *int
 	var className *string
 	err := r.db.QueryRow(`
 		SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
@@ -88,7 +88,7 @@ func (r *StudentRepository) GetStudentByID(id int64) (*model.StudentDetails, err
 }
 
 // StudentExists checks if a student with the given user ID exists.
-func (r *StudentRepository) StudentExists(id int64) (bool, error) {
+func (r *StudentRepository) StudentExists(id int) (bool, error) {
 	var exists bool
 	err := r.db.Get(&exists, `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND role = $2)`, id, constant.RoleStudent)
 	if err != nil {
@@ -98,7 +98,7 @@ func (r *StudentRepository) StudentExists(id int64) (bool, error) {
 }
 
 // UpdateStudent updates user and user_students fields for the given student ID in a single transaction.
-func (r *StudentRepository) UpdateStudent(studentID int64, update *model.UpdateStudent) error {
+func (r *StudentRepository) UpdateStudent(studentID int, update *model.UpdateStudent) error {
 	if update == nil {
 		return fmt.Errorf("update cannot be nil")
 	}
@@ -133,7 +133,7 @@ func (r *StudentRepository) UpdateStudent(studentID int64, update *model.UpdateS
 }
 
 // DeleteStudent removes the student and their associated user record.
-func (r *StudentRepository) DeleteStudent(studentID int64) error {
+func (r *StudentRepository) DeleteStudent(studentID int) error {
 	// Delete the user with role = 'student'; cascades to user_students automatically.
 	if _, err := r.db.Exec(`DELETE FROM users WHERE id = $1 AND role = $2`, studentID, constant.RoleStudent); err != nil {
 		return fmt.Errorf("failed to delete student: %w", err)
@@ -201,7 +201,7 @@ func (r *StudentRepository) ListStudents(
 
 		for rows.Next() {
 			var s model.StudentDetails
-			var classID *int64
+			var classID *int
 			var className *string
 			if err := rows.Scan(
 				&s.ID, &s.Username, &s.Email, &s.Name, &s.DateOfBirth, &s.Gender,

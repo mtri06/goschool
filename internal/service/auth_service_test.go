@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 
 type mockUserRepo struct {
 	getByUsernameFn func(username string) (*model.User, error)
-	getByIDFn       func(id int64) (*model.User, error)
+	getByIDFn       func(id int) (*model.User, error)
 }
 
 func (m *mockUserRepo) GetByUsername(username string) (*model.User, error) {
@@ -41,7 +41,7 @@ func (m *mockUserRepo) GetByUsername(username string) (*model.User, error) {
 	}
 	return nil, nil
 }
-func (m *mockUserRepo) GetByID(id int64) (*model.User, error) {
+func (m *mockUserRepo) GetByID(id int) (*model.User, error) {
 	if m.getByIDFn != nil {
 		return m.getByIDFn(id)
 	}
@@ -52,8 +52,8 @@ type mockTokenRepo struct {
 	createTokenFn   func(token *model.Token) error
 	revokeByBodyFn  func(body string) error
 	getByBodyFn     func(body string) (*model.Token, error)
-	markUsedFn      func(id int64) error
-	blacklistUserFn func(userID int64) error
+	markUsedFn      func(id int) error
+	blacklistUserFn func(userID int) error
 }
 
 func (m *mockTokenRepo) CreateToken(token *model.Token) error {
@@ -74,13 +74,13 @@ func (m *mockTokenRepo) GetByBody(body string) (*model.Token, error) {
 	}
 	return nil, nil
 }
-func (m *mockTokenRepo) MarkUsed(id int64) error {
+func (m *mockTokenRepo) MarkUsed(id int) error {
 	if m.markUsedFn != nil {
 		return m.markUsedFn(id)
 	}
 	return nil
 }
-func (m *mockTokenRepo) BlacklistUserTokens(userID int64) error {
+func (m *mockTokenRepo) BlacklistUserTokens(userID int) error {
 	if m.blacklistUserFn != nil {
 		return m.blacklistUserFn(userID)
 	}
@@ -93,7 +93,7 @@ func (m *mockTokenRepo) BlacklistUserTokens(userID int64) error {
 
 // makeAccessToken signs a JWT with the test secret and the given expiry.
 // Pass exp in the past to create an already-expired token.
-func makeAccessToken(userID int64, role string, exp time.Time) string {
+func makeAccessToken(userID int, role string, exp time.Time) string {
 	claims := jwt.MapClaims{
 		"sub":  float64(userID),
 		"role": role,
@@ -105,7 +105,7 @@ func makeAccessToken(userID int64, role string, exp time.Time) string {
 	return signed
 }
 
-func validRefreshTokenDoc(userID int64) *model.Token {
+func validRefreshTokenDoc(userID int) *model.Token {
 	return &model.Token{
 		ID:            1,
 		Body:          "some-opaque-refresh-token",
@@ -123,7 +123,7 @@ func validRefreshTokenDoc(userID int64) *model.Token {
 // ---------------------------------------------------------------------------
 
 func TestAuthService_RefreshTokens(t *testing.T) {
-	const userID int64 = 42
+	const userID int = 42
 	const refreshBody = "some-opaque-refresh-token"
 
 	expiredAT := makeAccessToken(userID, constant.RoleAdmin, time.Now().Add(-1*time.Hour))
@@ -144,7 +144,7 @@ func TestAuthService_RefreshTokens(t *testing.T) {
 			accessToken:  expiredAT,
 			refreshToken: refreshBody,
 			userRepo: &mockUserRepo{
-				getByIDFn: func(id int64) (*model.User, error) {
+				getByIDFn: func(id int) (*model.User, error) {
 					return &model.User{ID: id, Role: constant.RoleAdmin}, nil
 				},
 			},
@@ -231,7 +231,7 @@ func TestAuthService_RefreshTokens(t *testing.T) {
 					doc.IsUsed = true
 					return doc, nil
 				},
-				blacklistUserFn: func(uid int64) error { return nil },
+				blacklistUserFn: func(uid int) error { return nil },
 			},
 			wantErr: ErrUnauthorized,
 		},
@@ -247,7 +247,7 @@ func TestAuthService_RefreshTokens(t *testing.T) {
 					doc.IsRevoked = true
 					return doc, nil
 				},
-				blacklistUserFn: func(uid int64) error { return nil },
+				blacklistUserFn: func(uid int) error { return nil },
 			},
 			wantErr: ErrUnauthorized,
 		},
@@ -256,11 +256,11 @@ func TestAuthService_RefreshTokens(t *testing.T) {
 			accessToken:  expiredAT,
 			refreshToken: refreshBody,
 			userRepo: &mockUserRepo{
-				getByIDFn: func(id int64) (*model.User, error) { return nil, nil }, // user not found
+				getByIDFn: func(id int) (*model.User, error) { return nil, nil }, // user not found
 			},
 			tokenRepo: &mockTokenRepo{
 				getByBodyFn: func(body string) (*model.Token, error) { return validRefreshTokenDoc(userID), nil },
-				markUsedFn:  func(id int64) error { return nil },
+				markUsedFn:  func(id int) error { return nil },
 			},
 			wantErr: ErrNotFound,
 		},
@@ -283,7 +283,7 @@ func TestAuthService_RefreshTokens(t *testing.T) {
 			blacklistCalled := false
 			if tc.wantBlacklistCalled {
 				orig := tc.tokenRepo.blacklistUserFn
-				tc.tokenRepo.blacklistUserFn = func(uid int64) error {
+				tc.tokenRepo.blacklistUserFn = func(uid int) error {
 					blacklistCalled = true
 					if orig != nil {
 						return orig(uid)
