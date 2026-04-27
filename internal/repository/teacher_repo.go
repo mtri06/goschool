@@ -221,27 +221,11 @@ func (r *TeacherRepository) UpdateTeacher(teacherID int, update *model.UpdateTea
 	return nil
 }
 
-// DeleteTeacher removes the teacher and their associated user in a single transaction.
+// DeleteTeacher removes the teacher user and associated user_teacher record.
 func (r *TeacherRepository) DeleteTeacher(teacherID int) error {
-	tx, err := r.db.Beginx()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	// Delete the user with role = 'teacher'; cascades to user_teachers automatically.
-	if _, err = tx.Exec(`DELETE FROM users WHERE id = $1 AND role = $2`, teacherID, constant.RoleTeacher); err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
-	}
-
-	// Explicit delete of the teacher record (no-op when cascade already removed it).
-	if _, err = tx.Exec(`DELETE FROM user_teachers WHERE user_id = $1`, teacherID); err != nil {
+	// Deleting the user with role = 'teacher', cascades to user_teachers automatically.
+	if _, err := r.db.Exec(`DELETE FROM users WHERE id = $1 AND role = $2`, teacherID, constant.RoleTeacher); err != nil {
 		return fmt.Errorf("failed to delete teacher: %w", err)
 	}
-
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
 	return nil
 }

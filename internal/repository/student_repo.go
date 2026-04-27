@@ -132,7 +132,7 @@ func (r *StudentRepository) UpdateStudent(studentID int, update *model.UpdateStu
 	return nil
 }
 
-// DeleteStudent removes the student and their associated user record.
+// DeleteStudent removes the student user and associated user_students record.
 func (r *StudentRepository) DeleteStudent(studentID int) error {
 	// Delete the user with role = 'student'; cascades to user_students automatically.
 	if _, err := r.db.Exec(`DELETE FROM users WHERE id = $1 AND role = $2`, studentID, constant.RoleStudent); err != nil {
