@@ -21,19 +21,19 @@ type UpdateStudent struct {
 	AdmissionDate time.Time `json:"admissionDate" validate:"required"`
 }
 
-type StudentClass struct {
+type StudentDetailsClass struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 type StudentDetails struct {
-	ID            int64         `json:"id" db:"id"`
-	Username      string        `json:"username" db:"username"`
-	Email         *string       `json:"email" db:"email"`
-	Name          string        `json:"name" db:"name"`
-	DateOfBirth   time.Time     `json:"dateOfBirth" db:"date_of_birth"`
-	Gender        string        `json:"gender" db:"gender"`
-	Class         *StudentClass `json:"class"`
-	AdmissionDate time.Time     `json:"admissionDate" db:"admission_date"`
-	Graduated     bool          `json:"graduated" db:"graduated"`
-	GraduatedDate *time.Time    `json:"graduatedDate" db:"graduated_date"`
+	ID            int64                `json:"id" db:"id"`
+	Username      string               `json:"username" db:"username"`
+	Email         *string              `json:"email" db:"email"`
+	Name          string               `json:"name" db:"name"`
+	DateOfBirth   time.Time            `json:"dateOfBirth" db:"date_of_birth"`
+	Gender        string               `json:"gender" db:"gender"`
+	Class         *StudentDetailsClass `json:"class"`
+	AdmissionDate time.Time            `json:"admissionDate" db:"admission_date"`
+	Graduated     bool                 `json:"graduated" db:"graduated"`
+	GraduatedDate *time.Time           `json:"graduatedDate" db:"graduated_date"`
 }

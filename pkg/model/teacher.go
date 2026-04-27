@@ -24,14 +24,18 @@ type UpdateTeacher struct {
 	WorkingStatus string    `json:"workingStatus" validate:"required"`
 }
 
+type TeacherDetailsSubject struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
 type TeacherDetails struct {
-	ID            int64     `json:"id" db:"id"`
-	Username      string    `json:"username" db:"username"`
-	Email         *string   `json:"email" db:"email"`
-	Name          string    `json:"name" db:"name"`
-	DateOfBirth   time.Time `json:"dateOfBirth" db:"date_of_birth"`
-	Gender        string    `json:"gender" db:"gender"`
-	SubjectID     int64     `json:"subjectId" db:"subject_id"`
-	HireDate      time.Time `json:"hireDate" db:"hire_date"`
-	WorkingStatus string    `json:"workingStatus" db:"working_status"`
+	ID            int64                  `json:"id" db:"id"`
+	Username      string                 `json:"username" db:"username"`
+	Email         *string                `json:"email" db:"email"`
+	Name          string                 `json:"name" db:"name"`
+	DateOfBirth   time.Time              `json:"dateOfBirth" db:"date_of_birth"`
+	Gender        string                 `json:"gender" db:"gender"`
+	Subject       *TeacherDetailsSubject `json:"subject"`
+	HireDate      time.Time              `json:"hireDate" db:"hire_date"`
+	WorkingStatus string                 `json:"workingStatus" db:"working_status"`
 }

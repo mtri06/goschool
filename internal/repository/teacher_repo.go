@@ -98,14 +98,40 @@ func (r *TeacherRepository) ListTeachers(
 		defer wg.Done()
 		q := fmt.Sprintf(`
 			SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
-			       t.subject_id, t.hire_date, t.working_status
+			       t.hire_date, t.working_status,
+			       s.id, s.name
 			FROM users u
 			JOIN user_teachers t ON t.user_id = u.id
+			LEFT JOIN subjects s ON s.id = t.subject_id
 			%s
 			%s
 		`, where, limitOffset)
-		if err := r.db.Select(&teachers, q, args...); err != nil {
+		rows, err := r.db.Query(q, args...)
+		if err != nil {
 			listErr = fmt.Errorf("failed to list teachers: %w", err)
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var t model.TeacherDetails
+			var subjectID *int64
+			var subjectName *string
+
+			if err := rows.Scan(
+				&t.ID, &t.Username, &t.Email, &t.Name, &t.DateOfBirth, &t.Gender,
+				&t.HireDate, &t.WorkingStatus, &subjectID, &subjectName,
+			); err != nil {
+				listErr = fmt.Errorf("failed to scan teacher: %w", err)
+				return
+			}
+			if subjectID != nil && subjectName != nil {
+				t.Subject = &model.TeacherDetailsSubject{ID: *subjectID, Name: *subjectName}
+			}
+			teachers = append(teachers, t)
+		}
+		if err := rows.Err(); err != nil {
+			listErr = fmt.Errorf("failed to iterate teachers: %w", err)
 		}
 	}()
 
@@ -123,20 +149,31 @@ func (r *TeacherRepository) ListTeachers(
 
 // GetTeacherByID retrieves a teacher with full details by user ID.
 func (r *TeacherRepository) GetTeacherByID(id int64) (*model.TeacherDetails, error) {
-	var teacher model.TeacherDetails
-	err := r.db.Get(&teacher, `
+	var t model.TeacherDetails
+	var subjectID *int64
+	var subjectName *string
+	err := r.db.QueryRow(`
 		SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
-		       t.subject_id, t.hire_date, t.working_status
+		       t.hire_date, t.working_status,
+		       s.id, s.name
 		FROM users u
 		JOIN user_teachers t ON t.user_id = u.id
-		WHERE u.id = $1 AND u.role = 'teacher'`, id)
+		LEFT JOIN subjects s ON s.id = t.subject_id
+		WHERE u.id = $1 AND u.role = $2`, id, constant.RoleTeacher,
+	).Scan(
+		&t.ID, &t.Username, &t.Email, &t.Name, &t.DateOfBirth, &t.Gender,
+		&t.HireDate, &t.WorkingStatus, &subjectID, &subjectName,
+	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to get teacher by id: %w", err)
 	}
-	return &teacher, nil
+	if subjectID != nil && subjectName != nil {
+		t.Subject = &model.TeacherDetailsSubject{ID: *subjectID, Name: *subjectName}
+	}
+	return &t, nil
 }
 
 // TeacherExists checks if a teacher with the given user ID exists.
@@ -163,8 +200,8 @@ func (r *TeacherRepository) UpdateTeacher(teacherID int64, update *model.UpdateT
 
 	// Update users with role = 'teacher' condition to verify the ID belongs to a teacher
 	_, err = tx.Exec(
-		`UPDATE users SET name = $1, date_of_birth = $2, gender = $3, email = $4, updated_at = NOW() WHERE id = $5 AND role = 'teacher'`,
-		update.Name, update.DateOfBirth, update.Gender, update.Email, teacherID,
+		`UPDATE users SET name = $1, date_of_birth = $2, gender = $3, email = $4, updated_at = NOW() WHERE id = $5 AND role = $6`,
+		update.Name, update.DateOfBirth, update.Gender, update.Email, teacherID, constant.RoleTeacher,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update user: %w", err)
@@ -193,7 +230,7 @@ func (r *TeacherRepository) DeleteTeacher(teacherID int64) error {
 	defer tx.Rollback()
 
 	// Delete the user with role = 'teacher'; cascades to user_teachers automatically.
-	if _, err = tx.Exec(`DELETE FROM users WHERE id = $1 AND role = 'teacher'`, teacherID); err != nil {
+	if _, err = tx.Exec(`DELETE FROM users WHERE id = $1 AND role = $2`, teacherID, constant.RoleTeacher); err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
 

@@ -7,43 +7,9 @@ import (
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
 	"sync"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 )
-
-// studentRow is a flat scan target for queries that LEFT JOIN classes.
-type studentRow struct {
-	ID            int64      `db:"id"`
-	Username      string     `db:"username"`
-	Email         *string    `db:"email"`
-	Name          string     `db:"name"`
-	DateOfBirth   time.Time  `db:"date_of_birth"`
-	Gender        string     `db:"gender"`
-	AdmissionDate time.Time  `db:"admission_date"`
-	Graduated     bool       `db:"graduated"`
-	GraduatedDate *time.Time `db:"graduated_date"`
-	ClassID       *int64     `db:"class_id"`
-	ClassName     *string    `db:"class_name"`
-}
-
-func (r studentRow) toModel() model.StudentDetails {
-	s := model.StudentDetails{
-		ID:            r.ID,
-		Username:      r.Username,
-		Email:         r.Email,
-		Name:          r.Name,
-		DateOfBirth:   r.DateOfBirth,
-		Gender:        r.Gender,
-		AdmissionDate: r.AdmissionDate,
-		Graduated:     r.Graduated,
-		GraduatedDate: r.GraduatedDate,
-	}
-	if r.ClassID != nil && r.ClassName != nil {
-		s.Class = &model.StudentClass{ID: *r.ClassID, Name: *r.ClassName}
-	}
-	return s
-}
 
 type StudentRepository struct {
 	db *sqlx.DB
@@ -94,23 +60,31 @@ func (r *StudentRepository) CreateStudent(newStudent *model.NewStudent) error {
 
 // GetStudentByID retrieves a student with full details by user ID.
 func (r *StudentRepository) GetStudentByID(id int64) (*model.StudentDetails, error) {
-	var row studentRow
-	err := r.db.Get(&row, `
+	var s model.StudentDetails
+	var classID *int64
+	var className *string
+	err := r.db.QueryRow(`
 		SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
 		       s.admission_date, s.graduated, s.graduated_date,
-		       c.id AS class_id, c.name AS class_name
+		       c.id, c.name
 		FROM users u
 		JOIN user_students s ON s.user_id = u.id
 		LEFT JOIN classes c ON c.id = s.class_id
-		WHERE u.id = $1 AND u.role = $2`, id, constant.RoleStudent)
+		WHERE u.id = $1 AND u.role = $2`, id, constant.RoleStudent,
+	).Scan(
+		&s.ID, &s.Username, &s.Email, &s.Name, &s.DateOfBirth, &s.Gender,
+		&s.AdmissionDate, &s.Graduated, &s.GraduatedDate, &classID, &className,
+	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to get student by id: %w", err)
 	}
-	result := row.toModel()
-	return &result, nil
+	if classID != nil && className != nil {
+		s.Class = &model.StudentDetailsClass{ID: *classID, Name: *className}
+	}
+	return &s, nil
 }
 
 // StudentExists checks if a student with the given user ID exists.
@@ -196,7 +170,11 @@ func (r *StudentRepository) ListStudents(
 
 	go func() {
 		defer wg.Done()
-		q := "SELECT COUNT(*) FROM users u JOIN user_students s ON s.user_id = u.id " + where
+		q := "SELECT COUNT(*) FROM users u "
+		if len(studentFilters) > 0 {
+			q += "JOIN user_students s ON s.user_id = u.id "
+		}
+		q += where
 		if err := r.db.Get(&total, q, args...); err != nil {
 			countErr = fmt.Errorf("failed to count students: %w", err)
 		}
@@ -207,20 +185,38 @@ func (r *StudentRepository) ListStudents(
 		q := fmt.Sprintf(`
 			SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
 			       s.admission_date, s.graduated, s.graduated_date,
-			       c.id AS class_id, c.name AS class_name
+			       c.id, c.name
 			FROM users u
 			JOIN user_students s ON s.user_id = u.id
 			LEFT JOIN classes c ON c.id = s.class_id
 			%s
 			%s
 		`, where, limitOffset)
-		var rows []studentRow
-		if err := r.db.Select(&rows, q, args...); err != nil {
+		rows, err := r.db.Query(q, args...)
+		if err != nil {
 			listErr = fmt.Errorf("failed to list students: %w", err)
 			return
 		}
-		for _, row := range rows {
-			students = append(students, row.toModel())
+		defer rows.Close()
+
+		for rows.Next() {
+			var s model.StudentDetails
+			var classID *int64
+			var className *string
+			if err := rows.Scan(
+				&s.ID, &s.Username, &s.Email, &s.Name, &s.DateOfBirth, &s.Gender,
+				&s.AdmissionDate, &s.Graduated, &s.GraduatedDate, &classID, &className,
+			); err != nil {
+				listErr = fmt.Errorf("failed to scan student: %w", err)
+				return
+			}
+			if classID != nil && className != nil {
+				s.Class = &model.StudentDetailsClass{ID: *classID, Name: *className}
+			}
+			students = append(students, s)
+		}
+		if err := rows.Err(); err != nil {
+			listErr = fmt.Errorf("failed to iterate students: %w", err)
 		}
 	}()
 
