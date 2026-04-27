@@ -1,10 +1,14 @@
 package httpx
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator/v10"
@@ -28,12 +32,12 @@ func DecodeBody[T any](r *http.Request) (*T, error) {
 	err := render.DecodeJSON(r.Body, &payload)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to decode request body")
-		return nil, ErrInvalidBody
+		return nil, ErrInvalidBody.WithMsg(decodeBodyErrMsg(err))
 	}
 	err = validate.Struct(payload)
 	if err != nil {
-		if ve, ok := err.(validator.ValidationErrors); ok {
-			return nil, ErrValidationFailed.WithMsg(sanitizeValidationError(ve))
+		if vErr, ok := err.(validator.ValidationErrors); ok {
+			return nil, ErrValidationFailed.WithMsg(sanitizeValidationError(vErr))
 		}
 		log.Error().Err(err).Msg("validation error")
 		return nil, ErrValidationFailed
@@ -89,6 +93,26 @@ var validationMessages = map[string]validationMsgFn{
 	"eqfield": func(field, param string) string {
 		return fmt.Sprintf("`%v` must match %s", field, param)
 	},
+}
+
+// decodeBodyErrMsg returns a user-friendly message for JSON decode errors.
+func decodeBodyErrMsg(err error) string {
+	var syntaxErr *json.SyntaxError
+	var unmarshalErr *json.UnmarshalTypeError
+	var timeParseErr *time.ParseError
+
+	switch {
+	case err == io.EOF || err == io.ErrUnexpectedEOF:
+		return "request body must not be empty"
+	case errors.As(err, &syntaxErr):
+		return fmt.Sprintf("request body contains malformed JSON at position %d", syntaxErr.Offset)
+	case errors.As(err, &unmarshalErr):
+		return fmt.Sprintf("`%s` must be a %s", unmarshalErr.Field, unmarshalErr.Type.String())
+	case errors.As(err, &timeParseErr):
+		return fmt.Sprintf("invalid date/time format, expected RFC3339 (e.g. `%s`)", time.RFC3339)
+	default:
+		return "request body is invalid"
+	}
 }
 
 // sanitizeValidationError returns a human-readable message for all validation errors.
