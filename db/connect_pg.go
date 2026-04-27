@@ -12,7 +12,7 @@ import (
 
 type DBConfig struct {
 	Host        string
-	Port        string
+	Port        int
 	User        string
 	Password    string
 	Name        string
@@ -22,7 +22,7 @@ type DBConfig struct {
 
 func ConnectPostgres(cfg DBConfig) *sqlx.DB {
 	dsn := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s connect_timeout=%d",
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s connect_timeout=%d",
 		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Name, cfg.SSLMode, int(cfg.ConnTimeout.Seconds()),
 	)
 	pgCfg, err := pgx.ParseConfig(dsn)

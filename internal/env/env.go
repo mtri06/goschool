@@ -6,30 +6,35 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog/log"
 )
 
 type envConfig struct {
-	Environment string
+	Environment string `validate:"required,oneof=dev test prod"`
 
-	PgHost        string
-	PgPort        string
-	PgUser        string
-	PgPassword    string
-	PgDBName      string
-	PgSSLMode     string
-	PgConnTimeout time.Duration
+	PgHost        string        `validate:"required"`
+	PgPort        int           `validate:"required,min=1"`
+	PgUser        string        `validate:"required"`
+	PgPassword    string        `validate:"required"`
+	PgDBName      string        `validate:"required"`
+	PgSSLMode     string        `validate:"required,oneof=disable allow prefer require verify-ca verify-full"`
+	PgConnTimeout time.Duration ``
 
-	AllowedOrigins        []string
-	JWTSecret             string
-	JWTAccessExpiresMins  int
-	JWTRefreshExpiresDays int
-	AdminUsername         string
-	AdminPassword         string
+	AllowedOrigins []string `validate:"required,min=1,dive,required"`
+
+	JWTSecret             string `validate:"required"`
+	JWTAccessExpiresMins  int    `validate:"min=1"`
+	JWTRefreshExpiresDays int    `validate:"min=1"`
+
+	AdminUsername string `validate:"required"`
+	AdminPassword string `validate:"required"`
 }
 
 var Env envConfig
+
+var validate = validator.New(validator.WithRequiredStructEnabled())
 
 func Init(envFiles ...string) {
 	if err := godotenv.Load(envFiles...); err != nil {
@@ -40,7 +45,7 @@ func Init(envFiles ...string) {
 		Environment: envOrDefault("ENVIRONMENT", "dev"),
 
 		PgHost:        envOrPanic("PG_HOST"),
-		PgPort:        envOrPanic("PG_PORT"),
+		PgPort:        envIntOrPanic("PG_PORT"),
 		PgUser:        envOrPanic("PG_USER"),
 		PgPassword:    envOrPanic("PG_PASSWORD"),
 		PgDBName:      envOrPanic("PG_DB_NAME"),
@@ -55,6 +60,10 @@ func Init(envFiles ...string) {
 
 		AdminUsername: envOrPanic("ADMIN_USERNAME"),
 		AdminPassword: envOrPanic("ADMIN_PASSWORD"),
+	}
+
+	if err := validate.Struct(Env); err != nil {
+		log.Fatal().Err(err).Msg("invalid environment configuration")
 	}
 }
 
@@ -72,6 +81,18 @@ func envOrDefault(key, defaultVal string) string {
 		return defaultVal
 	}
 	return val
+}
+
+func envIntOrPanic(key string) int {
+	val := os.Getenv(key)
+	if val == "" {
+		log.Panic().Msgf("%v env is not set", key)
+	}
+	intVal, err := strconv.Atoi(val)
+	if err != nil {
+		log.Panic().Msgf("%v env is not a valid integer: %v", key, err)
+	}
+	return intVal
 }
 
 func envIntOrDefault(key string, defaultVal int) int {
