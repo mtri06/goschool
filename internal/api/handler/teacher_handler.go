@@ -2,13 +2,11 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"goschool/pkg/constant"
 	"goschool/pkg/httpx"
 	"goschool/pkg/model"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 )
 
@@ -45,10 +43,9 @@ func (h *TeacherHandler) CreateTeacher(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TeacherHandler) GetTeacherByID(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
+	id, err := httpx.GetParamInt(r, "id")
 	if err != nil {
-		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid teacher id"))
+		httpx.RenderError(w, r, h.errMap, err)
 		return
 	}
 
@@ -62,10 +59,9 @@ func (h *TeacherHandler) GetTeacherByID(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *TeacherHandler) DeleteTeacher(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
+	id, err := httpx.GetParamInt(r, "id")
 	if err != nil {
-		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid user id"))
+		httpx.RenderError(w, r, h.errMap, err)
 		return
 	}
 
@@ -78,10 +74,9 @@ func (h *TeacherHandler) DeleteTeacher(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TeacherHandler) UpdateTeacher(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
+	id, err := httpx.GetParamInt(r, "id")
 	if err != nil {
-		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid teacher id"))
+		httpx.RenderError(w, r, h.errMap, err)
 		return
 	}
 
@@ -100,27 +95,19 @@ func (h *TeacherHandler) UpdateTeacher(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TeacherHandler) GetTeachers(w http.ResponseWriter, r *http.Request) {
-	page := constant.DefaultPage
-	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
-		p, err := strconv.Atoi(pageStr)
-		if err != nil {
-			httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidQuery.WithMsg("invalid page number"))
-			return
-		}
-		page = p
+	page, err := httpx.GetQueryIntOrDefault(r, "page", constant.DefaultPage)
+	if err != nil {
+		httpx.RenderError(w, r, h.errMap, err)
+		return
 	}
-	pageSize := constant.DefaultPageSize
-	if pageSizeStr := r.URL.Query().Get("pageSize"); pageSizeStr != "" {
-		ps, err := strconv.Atoi(pageSizeStr)
-		if err != nil {
-			httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidQuery.WithMsg("invalid page size"))
-			return
-		}
-		pageSize = ps
+	pageSize, err := httpx.GetQueryIntOrDefault(r, "pageSize", constant.DefaultPageSize)
+	if err != nil {
+		httpx.RenderError(w, r, h.errMap, err)
+		return
 	}
-	name := r.URL.Query().Get("name")
-	email := r.URL.Query().Get("email")
-	workingStatus := r.URL.Query().Get("workingStatus")
+	name := httpx.GetQueryOrDefault(r, "name", "")
+	email := httpx.GetQueryOrDefault(r, "email", "")
+	workingStatus := httpx.GetQueryOrDefault(r, "workingStatus", "")
 
 	teachers, total, err := h.teacherSvc.ListTeachers(page, pageSize, name, email, workingStatus)
 	if err != nil {

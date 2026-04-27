@@ -2,13 +2,11 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"goschool/pkg/constant"
 	"goschool/pkg/httpx"
 	"goschool/pkg/model"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 )
 
@@ -45,10 +43,9 @@ func (h *StudentHandler) CreateStudent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StudentHandler) GetStudentByID(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
+	id, err := httpx.GetParamInt(r, "id")
 	if err != nil {
-		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid student id"))
+		httpx.RenderError(w, r, h.errMap, err)
 		return
 	}
 
@@ -62,48 +59,29 @@ func (h *StudentHandler) GetStudentByID(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *StudentHandler) GetStudents(w http.ResponseWriter, r *http.Request) {
-	page := constant.DefaultPage
-	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
-		p, err := strconv.Atoi(pageStr)
-		if err != nil {
-			httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidQuery.WithMsg("invalid page number"))
-			return
-		}
-		page = p
+	page, err := httpx.GetQueryIntOrDefault(r, "page", constant.DefaultPage)
+	if err != nil {
+		httpx.RenderError(w, r, h.errMap, err)
+		return
+	}
+	pageSize, err := httpx.GetQueryIntOrDefault(r, "pageSize", constant.DefaultPageSize)
+	if err != nil {
+		httpx.RenderError(w, r, h.errMap, err)
+		return
 	}
 
-	pageSize := constant.DefaultPageSize
-	if pageSizeStr := r.URL.Query().Get("pageSize"); pageSizeStr != "" {
-		ps, err := strconv.Atoi(pageSizeStr)
-		if err != nil {
-			httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidQuery.WithMsg("invalid page size"))
-			return
-		}
-		pageSize = ps
+	classID, err := httpx.GetQueryIntOptional(r, "classId")
+	if err != nil {
+		httpx.RenderError(w, r, h.errMap, err)
+		return
 	}
-
-	var classID *int
-	if classIDStr := r.URL.Query().Get("classId"); classIDStr != "" {
-		id, err := strconv.Atoi(classIDStr)
-		if err != nil {
-			httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidQuery.WithMsg("invalid class id"))
-			return
-		}
-		classID = &id
+	graduated, err := httpx.GetQueryBoolOptional(r, "graduated")
+	if err != nil {
+		httpx.RenderError(w, r, h.errMap, err)
+		return
 	}
-
-	name := r.URL.Query().Get("name")
-	email := r.URL.Query().Get("email")
-
-	var graduated *bool
-	if graduatedStr := r.URL.Query().Get("graduated"); graduatedStr != "" {
-		v, err := strconv.ParseBool(graduatedStr)
-		if err != nil {
-			httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidQuery.WithMsg("invalid graduated value"))
-			return
-		}
-		graduated = &v
-	}
+	name := httpx.GetQueryOrDefault(r, "name", "")
+	email := httpx.GetQueryOrDefault(r, "email", "")
 
 	students, total, err := h.studentSvc.ListStudents(page, pageSize, classID, graduated, name, email)
 	if err != nil {
@@ -122,10 +100,9 @@ func (h *StudentHandler) GetStudents(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StudentHandler) UpdateStudent(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
+	id, err := httpx.GetParamInt(r, "id")
 	if err != nil {
-		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid student id"))
+		httpx.RenderError(w, r, h.errMap, err)
 		return
 	}
 
@@ -144,10 +121,9 @@ func (h *StudentHandler) UpdateStudent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StudentHandler) DeleteStudent(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
+	id, err := httpx.GetParamInt(r, "id")
 	if err != nil {
-		httpx.RenderError(w, r, h.errMap, httpx.ErrInvalidParam.WithMsg("invalid student id"))
+		httpx.RenderError(w, r, h.errMap, err)
 		return
 	}
 
