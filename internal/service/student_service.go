@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	repo "goschool/internal/repository"
@@ -12,6 +11,7 @@ import (
 
 type studentSvcUserRepo interface {
 	EmailExists(email string, excludeIDs ...int) (bool, error)
+	UsernameExists(username string) (bool, error)
 }
 
 type studentSvcStudentRepo interface {
@@ -27,40 +27,48 @@ type studentSvcClassRepo interface {
 	ClassExists(id int) (bool, error)
 }
 
-type studentSvcUserSvc interface {
-	validateUser(user *model.User) error
-}
-
 type StudentService struct {
 	userRepo    studentSvcUserRepo
 	studentRepo studentSvcStudentRepo
 	classRepo   studentSvcClassRepo
-	userSvc     studentSvcUserSvc
 }
 
 func NewStudentService(
-	userRepo studentSvcUserRepo, studentRepo studentSvcStudentRepo, classRepo studentSvcClassRepo, userSvc studentSvcUserSvc,
+	userRepo studentSvcUserRepo, studentRepo studentSvcStudentRepo, classRepo studentSvcClassRepo,
 ) *StudentService {
 	return &StudentService{
 		userRepo:    userRepo,
 		studentRepo: studentRepo,
 		classRepo:   classRepo,
-		userSvc:     userSvc,
 	}
 }
 
 func (s *StudentService) CreateStudent(newStudent *model.NewStudent) error {
-	user := &model.User{
-		Username:    newStudent.Username,
-		Password:    newStudent.Password,
-		Email:       newStudent.Email,
-		Name:        newStudent.Name,
-		Role:        constant.RoleStudent,
-		DateOfBirth: newStudent.DateOfBirth,
-		Gender:      newStudent.Gender,
+	if err := validateGender(newStudent.Gender); err != nil {
+		return NewError(err.Error(), "invalid_gender", ErrValidationFailed)
 	}
-	if err := s.userSvc.validateUser(user); err != nil {
-		return err
+
+	if err := validatePassword(newStudent.Password); err != nil {
+		return NewError(err.Error(), "invalid_password", ErrValidationFailed)
+	}
+
+	exists, err := s.userRepo.UsernameExists(newStudent.Username)
+	if err != nil {
+		return fmt.Errorf("failed to check if username exists: %w", err)
+	}
+	if exists {
+		return NewError("username already exists", "username_exists", ErrValidationFailed)
+	}
+
+	if newStudent.Email != nil {
+		*newStudent.Email = strings.ToLower(*newStudent.Email)
+		exists, err := s.userRepo.EmailExists(*newStudent.Email)
+		if err != nil {
+			return fmt.Errorf("failed to check if email exists: %w", err)
+		}
+		if exists {
+			return NewError("email already exists", "email_exists", ErrValidationFailed)
+		}
 	}
 
 	hashedPassword, err := hashPassword(newStudent.Password)
@@ -129,8 +137,8 @@ func (s *StudentService) ListStudents(page, pageSize int, classID *int, graduate
 }
 
 func (s *StudentService) UpdateStudent(studentID int, update *model.UpdateStudent) error {
-	if !slices.Contains(allGenders, update.Gender) {
-		return NewError(fmt.Sprintf("gender must be one of %v", allGenders), "invalid_gender", ErrValidationFailed)
+	if err := validateGender(update.Gender); err != nil {
+		return NewError(err.Error(), "invalid_gender", ErrValidationFailed)
 	}
 
 	exists, err := s.studentRepo.StudentExists(studentID)

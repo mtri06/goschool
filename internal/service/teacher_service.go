@@ -5,12 +5,12 @@ import (
 	repo "goschool/internal/repository"
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
-	"slices"
 	"strings"
 )
 
 type teacherSvcUserRepo interface {
 	EmailExists(email string, excludeIDs ...int) (bool, error)
+	UsernameExists(username string) (bool, error)
 }
 
 type userSvcTeacherRepo interface {
@@ -26,38 +26,46 @@ type teacherSvcSubjectRepo interface {
 	Exists(id int) (bool, error)
 }
 
-type teacherSvcUserSvc interface {
-	validateUser(user *model.User) error
-}
-
 type TeacherService struct {
 	userRepo    teacherSvcUserRepo
 	teacherRepo userSvcTeacherRepo
 	subjectRepo teacherSvcSubjectRepo
-	userSvc     teacherSvcUserSvc
 }
 
-func NewTeacherService(userRepo teacherSvcUserRepo, teacherRepo userSvcTeacherRepo, subjectRepo teacherSvcSubjectRepo, userSvc teacherSvcUserSvc) *TeacherService {
+func NewTeacherService(userRepo teacherSvcUserRepo, teacherRepo userSvcTeacherRepo, subjectRepo teacherSvcSubjectRepo) *TeacherService {
 	return &TeacherService{
 		userRepo:    userRepo,
 		teacherRepo: teacherRepo,
 		subjectRepo: subjectRepo,
-		userSvc:     userSvc,
 	}
 }
 
 func (s *TeacherService) CreateTeacher(newTeacher *model.NewTeacher) error {
-	user := &model.User{
-		Username:    newTeacher.Username,
-		Password:    newTeacher.Password,
-		Email:       newTeacher.Email,
-		Name:        newTeacher.Name,
-		Role:        constant.RoleTeacher,
-		DateOfBirth: newTeacher.DateOfBirth,
-		Gender:      newTeacher.Gender,
+	if err := validateGender(newTeacher.Gender); err != nil {
+		return NewError(err.Error(), "invalid_gender", ErrValidationFailed)
 	}
-	if err := s.userSvc.validateUser(user); err != nil {
-		return err
+
+	if err := validatePassword(newTeacher.Password); err != nil {
+		return NewError(err.Error(), "invalid_password", ErrValidationFailed)
+	}
+
+	exists, err := s.userRepo.UsernameExists(newTeacher.Username)
+	if err != nil {
+		return fmt.Errorf("failed to check if username exists: %w", err)
+	}
+	if exists {
+		return NewError("username already exists", "username_exists", ErrValidationFailed)
+	}
+
+	if newTeacher.Email != nil {
+		*newTeacher.Email = strings.ToLower(*newTeacher.Email)
+		exists, err := s.userRepo.EmailExists(*newTeacher.Email)
+		if err != nil {
+			return fmt.Errorf("failed to check if email exists: %w", err)
+		}
+		if exists {
+			return NewError("email already exists", "email_exists", ErrValidationFailed)
+		}
 	}
 
 	hashedPassword, err := hashPassword(newTeacher.Password)
@@ -66,12 +74,8 @@ func (s *TeacherService) CreateTeacher(newTeacher *model.NewTeacher) error {
 	}
 	newTeacher.Password = hashedPassword
 
-	if !slices.Contains(teacherWorkingStatuses, newTeacher.WorkingStatus) {
-		return NewError(
-			fmt.Sprintf("working status must be one of %v, got: %s", teacherWorkingStatuses, newTeacher.WorkingStatus),
-			"invalid_working_status",
-			ErrValidationFailed,
-		)
+	if err := validateTeacherWorkingStatus(newTeacher.WorkingStatus); err != nil {
+		return NewError(err.Error(), "invalid_working_status", ErrValidationFailed)
 	}
 
 	if exists, err := s.subjectRepo.Exists(newTeacher.SubjectID); err != nil {
@@ -128,16 +132,12 @@ func (s *TeacherService) ListTeachers(page, pageSize int, name, email, workingSt
 }
 
 func (s *TeacherService) UpdateTeacher(teacherID int, update *model.UpdateTeacher) error {
-	if !slices.Contains(allGenders, update.Gender) {
-		return NewError(fmt.Sprintf("gender must be one of %v", allGenders), "invalid_gender", ErrValidationFailed)
+	if err := validateGender(update.Gender); err != nil {
+		return NewError(err.Error(), "invalid_gender", ErrValidationFailed)
 	}
 
-	if !slices.Contains(teacherWorkingStatuses, update.WorkingStatus) {
-		return NewError(
-			fmt.Sprintf("working status must be one of %v", teacherWorkingStatuses),
-			"invalid_working_status",
-			ErrValidationFailed,
-		)
+	if err := validateTeacherWorkingStatus(update.WorkingStatus); err != nil {
+		return NewError(err.Error(), "invalid_working_status", ErrValidationFailed)
 	}
 
 	exists, err := s.teacherRepo.TeacherExists(teacherID)

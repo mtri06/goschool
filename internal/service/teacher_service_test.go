@@ -16,12 +16,20 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockTeacherUserRepo struct {
-	emailExistsFn func(email string, excludeIDs ...int) (bool, error)
+	emailExistsFn    func(email string, excludeIDs ...int) (bool, error)
+	usernameExistsFn func(username string) (bool, error)
 }
 
 func (m *mockTeacherUserRepo) EmailExists(email string, excludeIDs ...int) (bool, error) {
 	if m.emailExistsFn != nil {
 		return m.emailExistsFn(email, excludeIDs...)
+	}
+	return false, nil
+}
+
+func (m *mockTeacherUserRepo) UsernameExists(username string) (bool, error) {
+	if m.usernameExistsFn != nil {
+		return m.usernameExistsFn(username)
 	}
 	return false, nil
 }
@@ -87,17 +95,6 @@ func (m *mockSubjectRepo) Exists(id int) (bool, error) {
 	return false, nil
 }
 
-type mockUserSvcForTeacher struct {
-	validateUserFn func(user *model.User) error
-}
-
-func (m *mockUserSvcForTeacher) validateUser(user *model.User) error {
-	if m.validateUserFn != nil {
-		return m.validateUserFn(user)
-	}
-	return nil
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -107,14 +104,15 @@ func newTeacherServiceWithMocks() *TeacherService {
 		userRepo:    &mockTeacherUserRepo{},
 		teacherRepo: &mockTeacherRepo{},
 		subjectRepo: &mockSubjectRepo{},
-		userSvc:     &mockUserSvcForTeacher{},
 	}
 }
 
 func validNewTeacher() *model.NewTeacher {
+	email := "john.doe@example.com"
 	return &model.NewTeacher{
 		Username:      "jdoe",
 		Password:      "Password1!",
+		Email:         &email,
 		Name:          "John Doe",
 		DateOfBirth:   time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
 		Gender:        constant.GenderMale,
@@ -138,27 +136,6 @@ func validUpdateTeacher() *model.UpdateTeacher {
 // ---------------------------------------------------------------------------
 // TestCreateTeacher
 // ---------------------------------------------------------------------------
-
-func TestTeacherService_CreateTeacher_MustCallValidateUser(t *testing.T) {
-	called := false
-
-	svc := newTeacherServiceWithMocks()
-	svc.userSvc = &mockUserSvcForTeacher{
-		validateUserFn: func(u *model.User) error {
-			called = true
-			return nil
-		},
-	}
-	svc.subjectRepo = &mockSubjectRepo{existsFn: func(id int) (bool, error) { return true, nil }}
-
-	err := svc.CreateTeacher(validNewTeacher())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !called {
-		t.Error("expected validateUser to be called, but it was not")
-	}
-}
 
 func TestTeacherService_PasswordMustBeHashedOnCreate(t *testing.T) {
 	var capturedTeacher *model.NewTeacher
@@ -193,7 +170,6 @@ func TestTeacherService_CreateTeacher(t *testing.T) {
 		userRepo    *mockTeacherUserRepo
 		teacherRepo *mockTeacherRepo
 		subjectRepo *mockSubjectRepo
-		userSvc     *mockUserSvcForTeacher
 		wantErr     error
 	}{
 		{
@@ -239,6 +215,40 @@ func TestTeacherService_CreateTeacher(t *testing.T) {
 			wantErr: ErrValidationFailed,
 		},
 		{
+			name: "invalid gender",
+			input: func() *model.NewTeacher {
+				t := validNewTeacher()
+				t.Gender = "invalid_gender"
+				return t
+			}(),
+			wantErr: ErrValidationFailed,
+		},
+		{
+			name: "invalid password",
+			input: func() *model.NewTeacher {
+				t := validNewTeacher()
+				t.Password = "weak"
+				return t
+			}(),
+			wantErr: ErrValidationFailed,
+		},
+		{
+			name:  "username already exists",
+			input: validNewTeacher(),
+			userRepo: &mockTeacherUserRepo{
+				usernameExistsFn: func(username string) (bool, error) { return true, nil },
+			},
+			wantErr: ErrValidationFailed,
+		},
+		{
+			name:  "email already exists",
+			input: validNewTeacher(),
+			userRepo: &mockTeacherUserRepo{
+				emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return true, nil },
+			},
+			wantErr: ErrValidationFailed,
+		},
+		{
 			name: "female gender",
 			input: func() *model.NewTeacher {
 				t := validNewTeacher()
@@ -259,10 +269,20 @@ func TestTeacherService_CreateTeacher(t *testing.T) {
 			wantErr:     dbErr,
 		},
 		{
-			name:    "validateUser returns error",
-			input:   validNewTeacher(),
-			userSvc: &mockUserSvcForTeacher{validateUserFn: func(u *model.User) error { return ErrValidationFailed }},
-			wantErr: ErrValidationFailed,
+			name:  "username check fails",
+			input: validNewTeacher(),
+			userRepo: &mockTeacherUserRepo{
+				usernameExistsFn: func(username string) (bool, error) { return false, dbErr },
+			},
+			wantErr: dbErr,
+		},
+		{
+			name:  "email check fails",
+			input: validNewTeacher(),
+			userRepo: &mockTeacherUserRepo{
+				emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return false, dbErr },
+			},
+			wantErr: dbErr,
 		},
 	}
 
@@ -278,15 +298,11 @@ func TestTeacherService_CreateTeacher(t *testing.T) {
 			if tc.teacherRepo == nil {
 				tc.teacherRepo = &mockTeacherRepo{}
 			}
-			if tc.userSvc == nil {
-				tc.userSvc = &mockUserSvcForTeacher{}
-			}
 
 			svc := newTeacherServiceWithMocks()
 			svc.userRepo = tc.userRepo
 			svc.teacherRepo = tc.teacherRepo
 			svc.subjectRepo = tc.subjectRepo
-			svc.userSvc = tc.userSvc
 
 			err := svc.CreateTeacher(tc.input)
 			if !errors.Is(err, tc.wantErr) {

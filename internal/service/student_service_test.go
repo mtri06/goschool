@@ -14,12 +14,20 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockStudentUserRepo struct {
-	emailExistsFn func(email string, excludeIDs ...int) (bool, error)
+	emailExistsFn    func(email string, excludeIDs ...int) (bool, error)
+	usernameExistsFn func(username string) (bool, error)
 }
 
 func (m *mockStudentUserRepo) EmailExists(email string, excludeIDs ...int) (bool, error) {
 	if m.emailExistsFn != nil {
 		return m.emailExistsFn(email, excludeIDs...)
+	}
+	return false, nil
+}
+
+func (m *mockStudentUserRepo) UsernameExists(username string) (bool, error) {
+	if m.usernameExistsFn != nil {
+		return m.usernameExistsFn(username)
 	}
 	return false, nil
 }
@@ -81,23 +89,12 @@ func (m *mockStudentClassRepo) ClassExists(id int) (bool, error) {
 	return true, nil
 }
 
-type mockStudentSvcUserSvc struct {
-	validateUserFunc func(user *model.User) error
-}
-
-func (m *mockStudentSvcUserSvc) validateUser(user *model.User) error {
-	if m.validateUserFunc != nil {
-		return m.validateUserFunc(user)
-	}
-	return nil
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 func newStudentServiceWithMocks() *StudentService {
-	return NewStudentService(&mockStudentUserRepo{}, &mockStudentRepo{}, &mockStudentClassRepo{}, &mockStudentSvcUserSvc{})
+	return NewStudentService(&mockStudentUserRepo{}, &mockStudentRepo{}, &mockStudentClassRepo{})
 }
 
 func validNewStudent() *model.NewStudent {
@@ -127,25 +124,6 @@ func validUpdateStudent() *model.UpdateStudent {
 // ---------------------------------------------------------------------------
 // TestCreateStudent — focused tests
 // ---------------------------------------------------------------------------
-
-func TestStudentService_CreateStudent_MustCallValidateUser(t *testing.T) {
-	called := false
-
-	svc := newStudentServiceWithMocks()
-	svc.userSvc = &mockStudentSvcUserSvc{
-		validateUserFunc: func(u *model.User) error {
-			called = true
-			return nil
-		},
-	}
-
-	if err := svc.CreateStudent(validNewStudent()); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !called {
-		t.Error("expected validateUser to be called, but it was not")
-	}
-}
 
 func TestStudentService_CreateStudent_PasswordMustBeHashed(t *testing.T) {
 	var captured *model.NewStudent
@@ -178,7 +156,7 @@ func TestStudentService_CreateStudent(t *testing.T) {
 		name        string
 		input       *model.NewStudent
 		studentRepo *mockStudentRepo
-		userSvc     *mockStudentSvcUserSvc
+		userRepo    *mockStudentUserRepo
 		wantErr     error
 	}{
 		{
@@ -194,26 +172,60 @@ func TestStudentService_CreateStudent(t *testing.T) {
 			}(),
 		},
 		{
-			name:  "validateUser returns validation error",
+			name: "invalid gender",
+			input: func() *model.NewStudent {
+				s := validNewStudent()
+				s.Gender = "invalid_gender"
+				return s
+			}(),
+			wantErr: ErrValidationFailed,
+		},
+		{
+			name: "invalid password",
+			input: func() *model.NewStudent {
+				s := validNewStudent()
+				s.Password = "weak" // Too short and missing required characters
+				return s
+			}(),
+			wantErr: ErrValidationFailed,
+		},
+		{
+			name:  "username already exists",
 			input: validNewStudent(),
-			userSvc: &mockStudentSvcUserSvc{
-				validateUserFunc: func(u *model.User) error { return ErrValidationFailed },
+			userRepo: &mockStudentUserRepo{
+				usernameExistsFn: func(username string) (bool, error) { return true, nil },
 			},
 			wantErr: ErrValidationFailed,
 		},
 		{
-			name:  "validateUser returns db error",
+			name:  "email already exists",
 			input: validNewStudent(),
-			userSvc: &mockStudentSvcUserSvc{
-				validateUserFunc: func(u *model.User) error { return dbErr },
+			userRepo: &mockStudentUserRepo{
+				emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return true, nil },
 			},
-			wantErr: dbErr,
+			wantErr: ErrValidationFailed,
 		},
 		{
 			name:  "repo returns db error",
 			input: validNewStudent(),
 			studentRepo: &mockStudentRepo{
 				createStudentFunc: func(s *model.NewStudent) error { return dbErr },
+			},
+			wantErr: dbErr,
+		},
+		{
+			name:  "username check fails",
+			input: validNewStudent(),
+			userRepo: &mockStudentUserRepo{
+				usernameExistsFn: func(username string) (bool, error) { return false, dbErr },
+			},
+			wantErr: dbErr,
+		},
+		{
+			name:  "email check fails",
+			input: validNewStudent(),
+			userRepo: &mockStudentUserRepo{
+				emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return false, dbErr },
 			},
 			wantErr: dbErr,
 		},
@@ -225,8 +237,8 @@ func TestStudentService_CreateStudent(t *testing.T) {
 			if tc.studentRepo != nil {
 				svc.studentRepo = tc.studentRepo
 			}
-			if tc.userSvc != nil {
-				svc.userSvc = tc.userSvc
+			if tc.userRepo != nil {
+				svc.userRepo = tc.userRepo
 			}
 
 			err := svc.CreateStudent(tc.input)

@@ -61,8 +61,8 @@ func NewServer(dbCfg db.DBConfig) http.Handler {
 
 	// Init services
 	userSvc := service.NewUserService(userRepo)
-	teacherSvc := service.NewTeacherService(userRepo, teacherRepo, subjectRepo, userSvc)
-	studentSvc := service.NewStudentService(userRepo, studentRepo, classRepo, userSvc)
+	teacherSvc := service.NewTeacherService(userRepo, teacherRepo, subjectRepo)
+	studentSvc := service.NewStudentService(userRepo, studentRepo, classRepo)
 	authSvc := service.NewAuthService(userRepo, tokenRepo)
 
 	// Seed admin user
