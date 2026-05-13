@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"goschool/internal/env"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -18,6 +19,18 @@ type DBConfig struct {
 	Name        string
 	SSLMode     string
 	ConnTimeout time.Duration
+}
+
+func ConfigFromEnv() DBConfig {
+	return DBConfig{
+		Host:        env.Env.PgHost,
+		Port:        env.Env.PgPort,
+		User:        env.Env.PgUser,
+		Password:    env.Env.PgPassword,
+		Name:        env.Env.PgDBName,
+		SSLMode:     env.Env.PgSSLMode,
+		ConnTimeout: env.Env.PgConnTimeout,
+	}
 }
 
 func ConnectPostgres(cfg DBConfig) *sqlx.DB {

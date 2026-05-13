@@ -1,46 +1,23 @@
 package api
 
 import (
-	"goschool/db"
 	"goschool/internal/api/handler"
 	mw "goschool/internal/api/middleware"
 	"goschool/internal/api/routes"
-	"goschool/internal/env"
 	"goschool/internal/repository"
 	"goschool/internal/service"
-	"goschool/pkg/logger"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	chiMw "github.com/go-chi/chi/v5/middleware"
-	"github.com/rs/zerolog/log"
+	"github.com/jmoiron/sqlx"
 )
-
-func InitServer() http.Handler {
-	env.Init()
-	logger.Init()
-	return NewServer(db.DBConfig{
-		Host:        env.Env.PgHost,
-		Port:        env.Env.PgPort,
-		User:        env.Env.PgUser,
-		Password:    env.Env.PgPassword,
-		Name:        env.Env.PgDBName,
-		SSLMode:     env.Env.PgSSLMode,
-		ConnTimeout: env.Env.PgConnTimeout,
-	})
-}
 
 // NewServer wires the full application given a database URL.
 // env.Env must be populated before calling this (InitServer handles that for production;
 // integration tests set env.Env fields directly).
-func NewServer(dbCfg db.DBConfig) http.Handler {
-	// Connect to Postgres
-	dbClient := db.ConnectPostgres(dbCfg)
-	log.Info().Msg("Connect to Postgres successfully")
-
-	// Migrate database
-	db.Migrate(dbClient.DB)
+func NewServer(dbClient *sqlx.DB) http.Handler {
 
 	r := chi.NewRouter()
 
