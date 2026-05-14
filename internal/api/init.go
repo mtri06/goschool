@@ -14,9 +14,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// NewServer wires the full application given a database URL.
-// env.Env must be populated before calling this (InitServer handles that for production;
-// integration tests set env.Env fields directly).
+// NewServer wires up repositories, services, handlers, and routes, and returns the http.Handler for the server.
 func NewServer(dbClient *sqlx.DB) http.Handler {
 
 	r := chi.NewRouter()

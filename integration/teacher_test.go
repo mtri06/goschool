@@ -26,7 +26,7 @@ func TestTeacher_CRUD(t *testing.T) {
 		Name:          "Integration Teacher",
 		DateOfBirth:   time.Date(1990, 6, 15, 0, 0, 0, 0, time.UTC),
 		Gender:        "male",
-		SubjectID:     1,
+		SubjectID:     func() *int { id := 1; return &id }(),
 		HireDate:      time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 		WorkingStatus: "active",
 	}
@@ -82,7 +82,7 @@ func TestTeacher_CRUD(t *testing.T) {
 		Name:          "Updated Teacher",
 		DateOfBirth:   time.Date(1990, 6, 15, 0, 0, 0, 0, time.UTC),
 		Gender:        "male",
-		SubjectID:     1,
+		SubjectID:     func() *int { id := 1; return &id }(),
 		HireDate:      time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 		WorkingStatus: "on_leave",
 	}

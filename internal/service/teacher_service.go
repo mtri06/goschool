@@ -78,10 +78,12 @@ func (s *TeacherService) CreateTeacher(newTeacher *model.NewTeacher) error {
 		return NewError(err.Error(), "invalid_working_status", ErrValidationFailed)
 	}
 
-	if exists, err := s.subjectRepo.Exists(newTeacher.SubjectID); err != nil {
-		return err
-	} else if !exists {
-		return NewError(fmt.Sprintf("subject not found: %v", newTeacher.SubjectID), "subject_not_found", ErrNotFound)
+	if newTeacher.SubjectID != nil {
+		if exists, err := s.subjectRepo.Exists(*newTeacher.SubjectID); err != nil {
+			return err
+		} else if !exists {
+			return NewError(fmt.Sprintf("subject not found: %v", *newTeacher.SubjectID), "subject_not_found", ErrNotFound)
+		}
 	}
 
 	if err := s.teacherRepo.CreateTeacher(newTeacher); err != nil {
@@ -148,10 +150,12 @@ func (s *TeacherService) UpdateTeacher(teacherID int, update *model.UpdateTeache
 		return NewError("teacher not found", "teacher_not_found", ErrNotFound)
 	}
 
-	if exists, err := s.subjectRepo.Exists(update.SubjectID); err != nil {
-		return fmt.Errorf("failed to check if subject exists: %w", err)
-	} else if !exists {
-		return NewError("subject not found", "subject_not_found", ErrNotFound)
+	if update.SubjectID != nil {
+		if exists, err := s.subjectRepo.Exists(*update.SubjectID); err != nil {
+			return fmt.Errorf("failed to check if subject exists: %w", err)
+		} else if !exists {
+			return NewError("subject not found", "subject_not_found", ErrNotFound)
+		}
 	}
 
 	if update.Email != nil {

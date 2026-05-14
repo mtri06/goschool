@@ -9,7 +9,7 @@ type NewTeacher struct {
 	Name          string    `json:"name" validate:"required"`
 	DateOfBirth   time.Time `json:"dateOfBirth" validate:"required"`
 	Gender        string    `json:"gender" validate:"required"`
-	SubjectID     int     `json:"subjectId" validate:"required"`
+	SubjectID     *int    `json:"subjectId"`
 	HireDate      time.Time `json:"hireDate" validate:"required"`
 	WorkingStatus string    `json:"workingStatus" validate:"required"`
 }
@@ -19,7 +19,7 @@ type UpdateTeacher struct {
 	Name          string    `json:"name" validate:"required"`
 	DateOfBirth   time.Time `json:"dateOfBirth" validate:"required"`
 	Gender        string    `json:"gender" validate:"required"`
-	SubjectID     int     `json:"subjectId" validate:"required"`
+	SubjectID     *int    `json:"subjectId"`
 	HireDate      time.Time `json:"hireDate" validate:"required"`
 	WorkingStatus string    `json:"workingStatus" validate:"required"`
 }

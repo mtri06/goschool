@@ -267,13 +267,14 @@ func TestTeacherHandler_DeleteTeacher_NotFound(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func newValidNewTeacher() *model.NewTeacher {
+	subjectID := 1
 	return &model.NewTeacher{
 		Username:      "jdoe",
 		Password:      "Password1!",
 		Name:          "John Doe",
 		DateOfBirth:   time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
 		Gender:        "male",
-		SubjectID:     1,
+		SubjectID:     &subjectID,
 		HireDate:      time.Now(),
 		WorkingStatus: "active",
 	}
@@ -331,7 +332,7 @@ func TestTeacherHandler_CreateTeacher_ServiceUnknownError(t *testing.T) {
 func TestTeacherHandler_CreateTeacher_MissingRequiredField(t *testing.T) {
 	h := newTeacherHandlerWithMocks()
 	requiredFields := []string{
-		"username", "password", "name", "dateOfBirth", "gender", "subjectID",
+		"username", "password", "name", "dateOfBirth", "gender",
 		"hireDate", "workingStatus",
 	}
 

@@ -109,6 +109,7 @@ func newTeacherServiceWithMocks() *TeacherService {
 
 func validNewTeacher() *model.NewTeacher {
 	email := "john.doe@example.com"
+	subjectID := 1
 	return &model.NewTeacher{
 		Username:      "jdoe",
 		Password:      "Password1!",
@@ -116,18 +117,19 @@ func validNewTeacher() *model.NewTeacher {
 		Name:          "John Doe",
 		DateOfBirth:   time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
 		Gender:        constant.GenderMale,
-		SubjectID:     1,
+		SubjectID:     &subjectID,
 		HireDate:      time.Now(),
 		WorkingStatus: constant.WorkingStatusActive,
 	}
 }
 
 func validUpdateTeacher() *model.UpdateTeacher {
+	subjectID := 1
 	return &model.UpdateTeacher{
 		Name:          "Jane Doe",
 		DateOfBirth:   time.Date(1991, 1, 1, 0, 0, 0, 0, time.UTC),
 		Gender:        constant.GenderFemale,
-		SubjectID:     1,
+		SubjectID:     &subjectID,
 		HireDate:      time.Now(),
 		WorkingStatus: constant.WorkingStatusActive,
 	}
@@ -283,6 +285,14 @@ func TestTeacherService_CreateTeacher(t *testing.T) {
 				emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return false, dbErr },
 			},
 			wantErr: dbErr,
+		},
+		{
+			name: "nil subject id is allowed",
+			input: func() *model.NewTeacher {
+				t := validNewTeacher()
+				t.SubjectID = nil
+				return t
+			}(),
 		},
 	}
 
@@ -621,6 +631,15 @@ func TestTeacherService_UpdateTeacher(t *testing.T) {
 				emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return false, dbErr },
 			},
 			wantErr: dbErr,
+		},
+		{
+			name: "nil subject id is allowed",
+			id:   1,
+			input: func() *model.UpdateTeacher {
+				u := validUpdateTeacher()
+				u.SubjectID = nil
+				return u
+			}(),
 		},
 	}
 
