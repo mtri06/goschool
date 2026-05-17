@@ -2,28 +2,23 @@ run:
 	go run cmd/api/main.go
 
 dev:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.dev up --build -d
+	docker compose -f docker-compose.dev.yml --env-file .env.dev up --build -d
+	$(MAKE) dev/logs 
 
 dev/logs:
 	docker logs -f goschool-app-dev
 
 dev/stop:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.dev stop
+	docker compose -f docker-compose.dev.yml stop
 
 dev/volume_down:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.dev down -v
+	docker compose -f docker-compose.dev.yml down -v
 
-unit_test:
-	go test ./...
+test/unit:
+	docker compose -f docker-compose.test.yml --env-file .env.test run --build --rm app_unit_test
 
-test:
-	docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.test up --build -d --wait
-	go test -tags integration -timeout 120s ./integration/... ; \
-	docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.test down
-
-test/stop:
-	docker compose -f docker-compose.yml -f docker-compose.test.yml --env-file .env.test stop
+test/integration:
+	docker compose -f docker-compose.test.yml --env-file .env.test run --build --rm app_integration_test
 
 prod:
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up --build -d
-
+	docker compose -f docker-compose.prod.yml --env-file .env.prod up --build -d

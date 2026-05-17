@@ -1,17 +1,44 @@
 services:
   app:
-    ports:
-      - '8080:8080'
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: 'goschool-app-dev'
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
     env_file:
       - .env.dev
-    container_name: 'goschool-app-dev'
+    ports:
+      - '8080:8080'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - goschool_net_dev
 
   postgres:
+    image: postgres:16-alpine
+    container_name: 'goschool-postgres-dev'
+    environment:
+      POSTGRES_DB: ${PG_DB_NAME}
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
     ports:
       - '5432:5432'
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
-    container_name: 'goschool-postgres'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${PG_USER} -d ${PG_DB_NAME}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - goschool_net_dev
 
 volumes:
   postgres_dev_data:
+
+networks:
+  goschool_net_dev:
+    driver: bridge

@@ -1,5 +1,3 @@
-//go:build integration
-
 package integration_test
 
 import (
@@ -31,7 +29,7 @@ func TestTeacher_CRUD(t *testing.T) {
 		WorkingStatus: "active",
 	}
 
-	createResp := doJSON(t, http.MethodPost, "/teachers", newTeacher, cookies)
+	createResp := requestJSON(t, http.MethodPost, "/teachers", newTeacher, withCookies(cookies))
 	defer createResp.Body.Close()
 
 	if createResp.StatusCode != http.StatusCreated {
@@ -39,7 +37,7 @@ func TestTeacher_CRUD(t *testing.T) {
 	}
 
 	// ── 2. List teachers — should include the new one ─────────────────────────
-	listResp := doJSON(t, http.MethodGet, "/teachers", nil, cookies)
+	listResp := requestJSON(t, http.MethodGet, "/teachers", nil, withCookies(cookies))
 	var listBody struct {
 		Teachers []model.TeacherDetails `json:"teachers"`
 		Total    int                    `json:"total"`
@@ -66,7 +64,7 @@ func TestTeacher_CRUD(t *testing.T) {
 	}
 
 	// ── 3. Get by ID ──────────────────────────────────────────────────────────
-	getResp := doJSON(t, http.MethodGet, "/teachers/"+itoa(teacherID), nil, cookies)
+	getResp := requestJSON(t, http.MethodGet, "/teachers/"+itoa(teacherID), nil, withCookies(cookies))
 	var got model.TeacherDetails
 	decodeJSON(t, getResp, &got)
 
@@ -87,7 +85,7 @@ func TestTeacher_CRUD(t *testing.T) {
 		WorkingStatus: "on_leave",
 	}
 
-	updateResp := doJSON(t, http.MethodPut, "/teachers/"+itoa(teacherID), update, cookies)
+	updateResp := requestJSON(t, http.MethodPut, "/teachers/"+itoa(teacherID), update, withCookies(cookies))
 	defer updateResp.Body.Close()
 
 	if updateResp.StatusCode != http.StatusNoContent {
@@ -95,7 +93,7 @@ func TestTeacher_CRUD(t *testing.T) {
 	}
 
 	// ── 5. Verify update ──────────────────────────────────────────────────────
-	getAfterUpdate := doJSON(t, http.MethodGet, "/teachers/"+itoa(teacherID), nil, cookies)
+	getAfterUpdate := requestJSON(t, http.MethodGet, "/teachers/"+itoa(teacherID), nil, withCookies(cookies))
 	var updated model.TeacherDetails
 	decodeJSON(t, getAfterUpdate, &updated)
 
@@ -107,7 +105,7 @@ func TestTeacher_CRUD(t *testing.T) {
 	}
 
 	// ── 6. Delete the teacher ─────────────────────────────────────────────────
-	deleteResp := doJSON(t, http.MethodDelete, "/teachers/"+itoa(teacherID), nil, cookies)
+	deleteResp := requestJSON(t, http.MethodDelete, "/teachers/"+itoa(teacherID), nil, withCookies(cookies))
 	defer deleteResp.Body.Close()
 
 	if deleteResp.StatusCode != http.StatusNoContent {
@@ -115,7 +113,7 @@ func TestTeacher_CRUD(t *testing.T) {
 	}
 
 	// ── 7. Get after delete — should be 404 ───────────────────────────────────
-	getAfterDelete := doJSON(t, http.MethodGet, "/teachers/"+itoa(teacherID), nil, cookies)
+	getAfterDelete := requestJSON(t, http.MethodGet, "/teachers/"+itoa(teacherID), nil, withCookies(cookies))
 	defer getAfterDelete.Body.Close()
 
 	if getAfterDelete.StatusCode != http.StatusNotFound {
@@ -124,7 +122,7 @@ func TestTeacher_CRUD(t *testing.T) {
 }
 
 func TestTeacher_Unauthorized(t *testing.T) {
-	resp := doJSON(t, http.MethodGet, "/teachers", nil, nil)
+	resp := requestJSON(t, http.MethodGet, "/teachers", nil, nil)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -135,7 +133,7 @@ func TestTeacher_Unauthorized(t *testing.T) {
 func TestTeacher_GetByID_NotFound(t *testing.T) {
 	cookies := loginAsAdmin(t)
 
-	resp := doJSON(t, http.MethodGet, "/teachers/99999", nil, cookies)
+	resp := requestJSON(t, http.MethodGet, "/teachers/99999", nil, withCookies(cookies))
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNotFound {
