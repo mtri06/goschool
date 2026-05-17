@@ -1,8 +1,8 @@
 package main
 
 import (
-	"goschool/db"
 	"goschool/internal/api"
+	"goschool/internal/db"
 	"goschool/internal/env"
 	"goschool/pkg/logger"
 	"net/http"
