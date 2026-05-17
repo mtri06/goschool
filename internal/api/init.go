@@ -16,7 +16,6 @@ import (
 
 // NewServer wires up repositories, services, handlers, and routes, and returns the http.Handler for the server.
 func NewServer(dbClient *sqlx.DB) http.Handler {
-
 	r := chi.NewRouter()
 
 	// Init middlewares

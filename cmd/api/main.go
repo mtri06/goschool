@@ -15,7 +15,15 @@ func main() {
 	logger.Init()
 
 	// Connect to Postgres
-	dbClient := db.ConnectPostgres(db.ConfigFromEnv())
+	dbClient := db.ConnectPostgres(db.DBConfig{
+		Host:        env.Env.PgHost,
+		Port:        env.Env.PgPort,
+		User:        env.Env.PgUser,
+		Password:    env.Env.PgPassword,
+		Name:        env.Env.PgDBName,
+		SSLMode:     env.Env.PgSSLMode,
+		ConnTimeout: env.Env.PgConnTimeout,
+	})
 	log.Info().Msg("Connect to Postgres successfully")
 	// Migrate database
 	db.Migrate(dbClient.DB)
