@@ -84,7 +84,9 @@ func requestJSON(t *testing.T, method, path string, body any, reqOpts ...reqOpti
 	}
 	req.Header.Set("Content-Type", "application/json")
 	for _, opt := range reqOpts {
-		opt(req)
+		if opt != nil {
+			opt(req)
+		}
 	}
 
 	resp, err := http.DefaultClient.Do(req)

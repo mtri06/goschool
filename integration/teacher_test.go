@@ -122,7 +122,7 @@ func TestTeacher_CRUD(t *testing.T) {
 }
 
 func TestTeacher_Unauthorized(t *testing.T) {
-	resp := requestJSON(t, http.MethodGet, "/teachers", nil, nil)
+	resp := requestJSON(t, http.MethodGet, "/teachers", nil)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusUnauthorized {
