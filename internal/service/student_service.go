@@ -15,7 +15,7 @@ type studentSvcUserRepo interface {
 }
 
 type studentSvcStudentRepo interface {
-	CreateStudent(newStudent *model.NewStudent) error
+	CreateStudent(newStudent *model.NewStudent) (*model.StudentDetails, error)
 	GetStudentByID(id int) (*model.StudentDetails, error)
 	StudentExists(id int) (bool, error)
 	UpdateStudent(studentID int, update *model.UpdateStudent) error
@@ -43,54 +43,55 @@ func NewStudentService(
 	}
 }
 
-func (s *StudentService) CreateStudent(newStudent *model.NewStudent) error {
+func (s *StudentService) CreateStudent(newStudent *model.NewStudent) (*model.StudentDetails, error) {
 	if err := validateGender(newStudent.Gender); err != nil {
-		return NewError(err.Error(), "invalid_gender", ErrValidationFailed)
+		return nil, NewError(err.Error(), "invalid_gender", ErrValidationFailed)
 	}
 
 	if err := validatePassword(newStudent.Password); err != nil {
-		return NewError(err.Error(), "invalid_password", ErrValidationFailed)
+		return nil, NewError(err.Error(), "invalid_password", ErrValidationFailed)
 	}
 
 	exists, err := s.userRepo.UsernameExists(newStudent.Username)
 	if err != nil {
-		return fmt.Errorf("failed to check if username exists: %w", err)
+		return nil, fmt.Errorf("failed to check if username exists: %w", err)
 	}
 	if exists {
-		return NewError("username already exists", "username_exists", ErrValidationFailed)
+		return nil, NewError("username already exists", "username_exists", ErrValidationFailed)
 	}
 
 	if newStudent.Email != nil {
 		*newStudent.Email = strings.ToLower(*newStudent.Email)
 		exists, err := s.userRepo.EmailExists(*newStudent.Email)
 		if err != nil {
-			return fmt.Errorf("failed to check if email exists: %w", err)
+			return nil, fmt.Errorf("failed to check if email exists: %w", err)
 		}
 		if exists {
-			return NewError("email already exists", "email_exists", ErrValidationFailed)
+			return nil, NewError("email already exists", "email_exists", ErrValidationFailed)
 		}
 	}
 
 	hashedPassword, err := hashPassword(newStudent.Password)
 	if err != nil {
-		return fmt.Errorf("failed to hash password: %w", err)
+		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 	newStudent.Password = hashedPassword
 
 	if newStudent.ClassID != nil {
 		exists, err := s.classRepo.ClassExists(*newStudent.ClassID)
 		if err != nil {
-			return fmt.Errorf("failed to check if class exists: %w", err)
+			return nil, fmt.Errorf("failed to check if class exists: %w", err)
 		}
 		if !exists {
-			return NewError("class not found", "class_not_found", ErrValidationFailed)
+			return nil, NewError("class not found", "class_not_found", ErrValidationFailed)
 		}
 	}
 
-	if err := s.studentRepo.CreateStudent(newStudent); err != nil {
-		return fmt.Errorf("failed to create student: %w", err)
+	details, err := s.studentRepo.CreateStudent(newStudent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create student: %w", err)
 	}
-	return nil
+	return details, nil
 }
 
 func (s *StudentService) GetStudentByID(studentID int) (*model.StudentDetails, error) {

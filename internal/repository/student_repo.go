@@ -7,6 +7,7 @@ import (
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
 	"sync"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -19,61 +20,80 @@ func NewStudentRepository(db *sqlx.DB) *StudentRepository {
 	return &StudentRepository{db: db}
 }
 
-func (r *StudentRepository) CreateStudent(newStudent *model.NewStudent) error {
+func (r *StudentRepository) CreateStudent(newStudent *model.NewStudent) (*model.StudentDetails, error) {
 	if newStudent == nil {
-		return fmt.Errorf("newStudent cannot be nil")
+		return nil, fmt.Errorf("newStudent cannot be nil")
 	}
 
 	tx, err := r.db.Beginx()
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
 	var userID int
+	var updatedAt, createdAt time.Time
 	err = tx.QueryRow(`
 		INSERT INTO users (username, password, email, role, name, date_of_birth, gender)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id`,
+		RETURNING id, created_at, updated_at`,
 		newStudent.Username, newStudent.Password, newStudent.Email, constant.RoleStudent,
 		newStudent.Name, newStudent.DateOfBirth, newStudent.Gender,
-	).Scan(&userID)
+	).Scan(&userID, &createdAt, &updatedAt)
 	if err != nil {
-		return fmt.Errorf("failed to insert user: %w", err)
+		return nil, fmt.Errorf("failed to insert user: %w", err)
 	}
 
-	_, err = tx.Exec(`
+	var graduated bool
+	var graduatedDate *time.Time
+	err = tx.QueryRow(`
 		INSERT INTO user_students (user_id, class_id, admission_date)
-		VALUES ($1, $2, $3)`,
+		VALUES ($1, $2, $3)
+		RETURNING graduated, graduated_date`,
 		userID, newStudent.ClassID, newStudent.AdmissionDate,
-	)
+	).Scan(&graduated, &graduatedDate)
 	if err != nil {
-		return fmt.Errorf("failed to insert student: %w", err)
+		return nil, fmt.Errorf("failed to insert student: %w", err)
 	}
 
 	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	return nil
+	details := &model.StudentDetails{
+		ID:            userID,
+		Username:      newStudent.Username,
+		Email:         newStudent.Email,
+		Name:          newStudent.Name,
+		DateOfBirth:   newStudent.DateOfBirth,
+		Gender:        newStudent.Gender,
+		ClassID:       newStudent.ClassID,
+		AdmissionDate: newStudent.AdmissionDate,
+		Graduated:     graduated,
+		GraduatedDate: graduatedDate,
+		CreatedAt:     createdAt,
+		UpdatedAt:     updatedAt,
+	}
+
+	return details, nil
 }
 
 // GetStudentByID retrieves a student with full details by user ID.
 func (r *StudentRepository) GetStudentByID(id int) (*model.StudentDetails, error) {
 	var s model.StudentDetails
-	var classID *int
 	var className *string
 	err := r.db.QueryRow(`
 		SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
-		       s.admission_date, s.graduated, s.graduated_date,
-		       c.id, c.name
+		       s.admission_date, s.graduated, s.graduated_date, s.class_id,
+		       c.name, u.created_at, u.updated_at
 		FROM users u
 		JOIN user_students s ON s.user_id = u.id
 		LEFT JOIN classes c ON c.id = s.class_id
 		WHERE u.id = $1 AND u.role = $2`, id, constant.RoleStudent,
 	).Scan(
 		&s.ID, &s.Username, &s.Email, &s.Name, &s.DateOfBirth, &s.Gender,
-		&s.AdmissionDate, &s.Graduated, &s.GraduatedDate, &classID, &className,
+		&s.AdmissionDate, &s.Graduated, &s.GraduatedDate, &s.ClassID,
+		&className, &s.CreatedAt, &s.UpdatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -81,8 +101,8 @@ func (r *StudentRepository) GetStudentByID(id int) (*model.StudentDetails, error
 		}
 		return nil, fmt.Errorf("failed to get student by id: %w", err)
 	}
-	if classID != nil && className != nil {
-		s.Class = &model.StudentDetailsClass{ID: *classID, Name: *className}
+	if s.ClassID != nil && className != nil {
+		s.Class = &model.StudentDetailsClass{ID: *s.ClassID, Name: *className}
 	}
 	return &s, nil
 }
@@ -184,8 +204,8 @@ func (r *StudentRepository) ListStudents(
 		defer wg.Done()
 		q := fmt.Sprintf(`
 			SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
-			       s.admission_date, s.graduated, s.graduated_date,
-			       c.id, c.name
+			       s.admission_date, s.graduated, s.graduated_date, s.class_id,
+			       c.name, u.created_at, u.updated_at
 			FROM users u
 			JOIN user_students s ON s.user_id = u.id
 			LEFT JOIN classes c ON c.id = s.class_id
@@ -201,17 +221,17 @@ func (r *StudentRepository) ListStudents(
 
 		for rows.Next() {
 			var s model.StudentDetails
-			var classID *int
 			var className *string
 			if err := rows.Scan(
 				&s.ID, &s.Username, &s.Email, &s.Name, &s.DateOfBirth, &s.Gender,
-				&s.AdmissionDate, &s.Graduated, &s.GraduatedDate, &classID, &className,
+				&s.AdmissionDate, &s.Graduated, &s.GraduatedDate, &s.ClassID,
+				&className, &s.CreatedAt, &s.UpdatedAt,
 			); err != nil {
 				listErr = fmt.Errorf("failed to scan student: %w", err)
 				return
 			}
-			if classID != nil && className != nil {
-				s.Class = &model.StudentDetailsClass{ID: *classID, Name: *className}
+			if s.ClassID != nil && className != nil {
+				s.Class = &model.StudentDetailsClass{ID: *s.ClassID, Name: *className}
 			}
 			students = append(students, s)
 		}

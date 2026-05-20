@@ -1,6 +1,7 @@
-package integration_test
+package integration
 
 import (
+	"io"
 	"net/http"
 	"strconv"
 	"testing"
@@ -10,7 +11,12 @@ import (
 )
 
 func TestTeacher_CRUD(t *testing.T) {
+	t.Cleanup(func() { clearDB(t) })
+
 	cookies := loginAsAdmin(t)
+
+	// 1. Seed subjects (required for teacher's subject_id foreign key)
+	subjectIDs := seedSubjects(t, cookies, "Math", "Science")
 
 	// ── 1. Create a teacher ──────────────────────────────────────────────────
 	// Seed a subject first (required foreign key). Call the DB directly via
@@ -24,7 +30,7 @@ func TestTeacher_CRUD(t *testing.T) {
 		Name:          "Integration Teacher",
 		DateOfBirth:   time.Date(1990, 6, 15, 0, 0, 0, 0, time.UTC),
 		Gender:        "male",
-		SubjectID:     func() *int { id := 1; return &id }(),
+		SubjectID:     &subjectIDs[0],
 		HireDate:      time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 		WorkingStatus: "active",
 	}
@@ -33,7 +39,8 @@ func TestTeacher_CRUD(t *testing.T) {
 	defer createResp.Body.Close()
 
 	if createResp.StatusCode != http.StatusCreated {
-		t.Fatalf("create teacher: expected 201, got %d", createResp.StatusCode)
+		respBody, _ := io.ReadAll(createResp.Body)
+		t.Fatalf("create teacher: expected 201, got %d with response: %s", createResp.StatusCode, respBody)
 	}
 
 	// ── 2. List teachers — should include the new one ─────────────────────────
@@ -80,7 +87,7 @@ func TestTeacher_CRUD(t *testing.T) {
 		Name:          "Updated Teacher",
 		DateOfBirth:   time.Date(1990, 6, 15, 0, 0, 0, 0, time.UTC),
 		Gender:        "male",
-		SubjectID:     func() *int { id := 1; return &id }(),
+		SubjectID:     &subjectIDs[1],
 		HireDate:      time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC),
 		WorkingStatus: "on_leave",
 	}
@@ -122,6 +129,8 @@ func TestTeacher_CRUD(t *testing.T) {
 }
 
 func TestTeacher_Unauthorized(t *testing.T) {
+	t.Cleanup(func() { clearDB(t) })
+
 	resp := requestJSON(t, http.MethodGet, "/teachers", nil)
 	defer resp.Body.Close()
 
@@ -131,6 +140,8 @@ func TestTeacher_Unauthorized(t *testing.T) {
 }
 
 func TestTeacher_GetByID_NotFound(t *testing.T) {
+	t.Cleanup(func() { clearDB(t) })
+
 	cookies := loginAsAdmin(t)
 
 	resp := requestJSON(t, http.MethodGet, "/teachers/99999", nil, withCookies(cookies))

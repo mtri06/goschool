@@ -16,9 +16,7 @@ CREATE TABLE user_teachers (
   user_id        INT         PRIMARY KEY,
   subject_id     INT,
   hire_date      DATE        NOT NULL,
-  working_status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (working_status IN ('active', 'inactive', 'on_leave')),
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at     TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  working_status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (working_status IN ('active', 'inactive', 'on_leave'))
 );
 
 CREATE TABLE user_students (
@@ -26,9 +24,7 @@ CREATE TABLE user_students (
   class_id        INT,
   admission_date  DATE        NOT NULL,
   graduated       BOOLEAN     NOT NULL DEFAULT FALSE,
-  graduated_date  DATE,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at      TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+  graduated_date  DATE
 );
 
 CREATE TABLE subjects (

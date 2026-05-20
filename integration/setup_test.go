@@ -1,36 +1,32 @@
-package integration_test
+package integration
 
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"goschool/internal/api"
 	"goschool/internal/db"
 	"goschool/internal/env"
+	"goschool/internal/server"
 	"goschool/pkg/logger"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog/log"
 )
 
-const (
-	testAdminUsername = "admin"
-	testAdminPassword = "testpassword"
+var (
+	svr      *httptest.Server
+	dbClient *sqlx.DB
 )
 
-var server *httptest.Server
-
 func TestMain(m *testing.M) {
-	env.Init(".env.test")
+	env.Init("../.env.test")
 	logger.Init()
 
 	// Connect to Postgres
-	dbClient := db.ConnectPostgres(db.DBConfig{
+	dbClient = db.ConnectPostgres(db.DBConfig{
 		Host:        env.Env.PgHost,
 		Port:        env.Env.PgPort,
 		User:        env.Env.PgUser,
@@ -40,24 +36,27 @@ func TestMain(m *testing.M) {
 		ConnTimeout: env.Env.PgConnTimeout,
 	})
 	log.Info().Msg("Connect to Postgres successfully")
-	defer dbClient.Close()
 	// Migrate database
 	db.Migrate(dbClient.DB)
 
-	server = httptest.NewServer(api.NewServer(dbClient))
-	defer server.Close()
+	svr = httptest.NewServer(server.New(dbClient))
+	defer svr.Close()
 
 	code := m.Run()
 
 	os.Exit(code)
 }
 
-func clearDB(t *testing.T, dbClient *sqlx.DB) {
+func clearDB(t *testing.T) {
 	t.Helper()
-	tables := []string{"users", "user_teachers", "user_students", "subjects", "classes", "teaching_assignments", "tokens"}
-	query := fmt.Sprintf("TRUNCATE TABLE %s RESTART IDENTITY CASCADE", strings.Join(tables, ", "))
-	if _, err := dbClient.Exec(query); err != nil {
-		t.Fatalf("failed to clear database: %v", err)
+	tables := []string{"subjects", "classes", "teaching_assignments", "tokens"}
+	for _, tbl := range tables {
+		if _, err := dbClient.Exec("DELETE FROM " + tbl); err != nil {
+			t.Fatalf("failed to cleanup table %s: %v", tbl, err)
+		}
+	}
+	if _, err := dbClient.Exec("DELETE FROM users WHERE username != $1", env.Env.AdminUsername); err != nil {
+		t.Fatalf("failed to cleanup users: %v", err)
 	}
 }
 
@@ -78,7 +77,7 @@ func requestJSON(t *testing.T, method, path string, body any, reqOpts ...reqOpti
 		}
 	}
 
-	req, err := http.NewRequest(method, server.URL+path, &reqBody)
+	req, err := http.NewRequest(method, svr.URL+path, &reqBody)
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
@@ -110,8 +109,8 @@ func loginAsAdmin(t *testing.T) []*http.Cookie {
 	t.Helper()
 
 	resp := requestJSON(t, http.MethodPost, "/auth/login", map[string]string{
-		"username": testAdminUsername,
-		"password": testAdminPassword,
+		"username": env.Env.AdminUsername,
+		"password": env.Env.AdminPassword,
 	})
 	defer resp.Body.Close()
 

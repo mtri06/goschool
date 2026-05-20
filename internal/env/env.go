@@ -38,7 +38,7 @@ var validate = validator.New(validator.WithRequiredStructEnabled())
 
 func Init(envFiles ...string) {
 	if err := godotenv.Load(envFiles...); err != nil {
-		log.Warn().Msg("No .env file found, relying on environment variables")
+		log.Warn().Msgf("No %v file found, relying on environment variables", strings.Join(envFiles, ", "))
 	}
 
 	Env = envConfig{

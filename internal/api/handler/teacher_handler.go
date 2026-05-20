@@ -10,8 +10,8 @@ import (
 	"github.com/go-chi/render"
 )
 
-type teacherSvc interface {
-	CreateTeacher(newTeacher *model.NewTeacher) error
+type TeacherSvc interface {
+	CreateTeacher(newTeacher *model.NewTeacher) (*model.TeacherDetails, error)
 	GetTeacherByID(teacherID int) (*model.TeacherDetails, error)
 	UpdateTeacher(teacherID int, update *model.UpdateTeacher) error
 	ListTeachers(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error)
@@ -19,11 +19,11 @@ type teacherSvc interface {
 }
 
 type TeacherHandler struct {
-	teacherSvc teacherSvc
+	teacherSvc TeacherSvc
 	errMap     httpx.APIErrorMap
 }
 
-func NewTeacherHandler(teacherSvc teacherSvc, errMap httpx.APIErrorMap) *TeacherHandler {
+func NewTeacherHandler(teacherSvc TeacherSvc, errMap httpx.APIErrorMap) *TeacherHandler {
 	return &TeacherHandler{teacherSvc: teacherSvc, errMap: errMap}
 }
 
@@ -34,12 +34,15 @@ func (h *TeacherHandler) CreateTeacher(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.teacherSvc.CreateTeacher(newTeacher); err != nil {
+	teacher, err := h.teacherSvc.CreateTeacher(newTeacher)
+	if err != nil {
 		httpx.RenderError(w, r, h.errMap, err)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	render.JSON(w, r, teacher)
 }
 
 func (h *TeacherHandler) GetTeacherByID(w http.ResponseWriter, r *http.Request) {

@@ -10,8 +10,8 @@ import (
 	"github.com/go-chi/render"
 )
 
-type studentSvc interface {
-	CreateStudent(newStudent *model.NewStudent) error
+type StudentSvc interface {
+	CreateStudent(newStudent *model.NewStudent) (*model.StudentDetails, error)
 	GetStudentByID(studentID int) (*model.StudentDetails, error)
 	ListStudents(page, pageSize int, classID *int, graduated *bool, name, email string) ([]model.StudentDetails, int, error)
 	UpdateStudent(studentID int, update *model.UpdateStudent) error
@@ -19,11 +19,11 @@ type studentSvc interface {
 }
 
 type StudentHandler struct {
-	studentSvc studentSvc
+	studentSvc StudentSvc
 	errMap     httpx.APIErrorMap
 }
 
-func NewStudentHandler(studentSvc studentSvc, errMap httpx.APIErrorMap) *StudentHandler {
+func NewStudentHandler(studentSvc StudentSvc, errMap httpx.APIErrorMap) *StudentHandler {
 	return &StudentHandler{studentSvc: studentSvc, errMap: errMap}
 }
 
@@ -34,12 +34,15 @@ func (h *StudentHandler) CreateStudent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.studentSvc.CreateStudent(newStudent); err != nil {
+	student, err := h.studentSvc.CreateStudent(newStudent)
+	if err != nil {
 		httpx.RenderError(w, r, h.errMap, err)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	render.JSON(w, r, student)
 }
 
 func (h *StudentHandler) GetStudentByID(w http.ResponseWriter, r *http.Request) {

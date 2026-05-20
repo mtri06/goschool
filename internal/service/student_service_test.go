@@ -7,6 +7,8 @@ import (
 
 	"goschool/internal/repository"
 	"goschool/pkg/model"
+
+	"github.com/stretchr/testify/require"
 )
 
 // ---------------------------------------------------------------------------
@@ -33,7 +35,7 @@ func (m *mockStudentUserRepo) UsernameExists(username string) (bool, error) {
 }
 
 type mockStudentRepo struct {
-	createStudentFunc func(newStudent *model.NewStudent) error
+	createStudentFunc func(newStudent *model.NewStudent) (*model.StudentDetails, error)
 	getByIDFn         func(id int) (*model.StudentDetails, error)
 	studentExistsFn   func(id int) (bool, error)
 	updateStudentFn   func(id int, u *model.UpdateStudent) error
@@ -41,11 +43,11 @@ type mockStudentRepo struct {
 	listStudentsFn    func(p *repository.Pagination, uf repository.Filters, sf repository.Filters) ([]model.StudentDetails, int, error)
 }
 
-func (m *mockStudentRepo) CreateStudent(newStudent *model.NewStudent) error {
+func (m *mockStudentRepo) CreateStudent(newStudent *model.NewStudent) (*model.StudentDetails, error) {
 	if m.createStudentFunc != nil {
 		return m.createStudentFunc(newStudent)
 	}
-	return nil
+	return nil, nil
 }
 func (m *mockStudentRepo) GetStudentByID(id int) (*model.StudentDetails, error) {
 	if m.getByIDFn != nil {
@@ -132,13 +134,13 @@ func TestStudentService_CreateStudent_PasswordMustBeHashed(t *testing.T) {
 
 	svc := newStudentServiceWithMocks()
 	svc.studentRepo = &mockStudentRepo{
-		createStudentFunc: func(s *model.NewStudent) error {
+		createStudentFunc: func(s *model.NewStudent) (*model.StudentDetails, error) {
 			captured = s
-			return nil
+			return &model.StudentDetails{}, nil
 		},
 	}
 
-	if err := svc.CreateStudent(newStudent); err != nil {
+	if _, err := svc.CreateStudent(newStudent); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if captured == nil {
@@ -209,7 +211,7 @@ func TestStudentService_CreateStudent(t *testing.T) {
 			name:  "repo returns db error",
 			input: validNewStudent(),
 			studentRepo: &mockStudentRepo{
-				createStudentFunc: func(s *model.NewStudent) error { return dbErr },
+				createStudentFunc: func(s *model.NewStudent) (*model.StudentDetails, error) { return nil, dbErr },
 			},
 			wantErr: dbErr,
 		},
@@ -241,10 +243,9 @@ func TestStudentService_CreateStudent(t *testing.T) {
 				svc.userRepo = tc.userRepo
 			}
 
-			err := svc.CreateStudent(tc.input)
-			if !errors.Is(err, tc.wantErr) {
-				t.Errorf("got err %v, want %v", err, tc.wantErr)
-			}
+			student, err := svc.CreateStudent(tc.input)
+			require.ErrorIs(t, err, tc.wantErr)
+			require.Nil(t, student, "student must be nil")
 		})
 	}
 }

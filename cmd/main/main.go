@@ -1,11 +1,10 @@
 package main
 
 import (
-	"goschool/internal/api"
 	"goschool/internal/db"
 	"goschool/internal/env"
+	"goschool/internal/server"
 	"goschool/pkg/logger"
-	"net/http"
 
 	"github.com/rs/zerolog/log"
 )
@@ -28,10 +27,9 @@ func main() {
 	// Migrate database
 	db.Migrate(dbClient.DB)
 
-	server := api.NewServer(dbClient)
-
-	log.Info().Msg("Server started at http://localhost:8080")
-	if err := http.ListenAndServe("0.0.0.0:8080", server); err != nil {
-		log.Fatal().Msgf("Could not start http server: %v", err)
+	server := server.New(dbClient)
+	if err := server.Run(); err != nil {
+		log.Fatal().Err(err).Msg("Failed to start server")
 	}
+	log.Info().Msg("Server stopped")
 }

@@ -9,6 +9,8 @@ import (
 	"goschool/internal/repository"
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
+
+	"github.com/stretchr/testify/require"
 )
 
 // ---------------------------------------------------------------------------
@@ -35,7 +37,7 @@ func (m *mockTeacherUserRepo) UsernameExists(username string) (bool, error) {
 }
 
 type mockTeacherRepo struct {
-	createFn        func(t *model.NewTeacher) error
+	createFn        func(t *model.NewTeacher) (*model.TeacherDetails, error)
 	getByIDFn       func(id int) (*model.TeacherDetails, error)
 	teacherExistsFn func(id int) (bool, error)
 	updateFn        func(id int, u *model.UpdateTeacher) error
@@ -45,11 +47,11 @@ type mockTeacherRepo struct {
 	) ([]model.TeacherDetails, int, error)
 }
 
-func (m *mockTeacherRepo) CreateTeacher(t *model.NewTeacher) error {
+func (m *mockTeacherRepo) CreateTeacher(t *model.NewTeacher) (*model.TeacherDetails, error) {
 	if m.createFn != nil {
 		return m.createFn(t)
 	}
-	return nil
+	return nil, nil
 }
 func (m *mockTeacherRepo) GetTeacherByID(id int) (*model.TeacherDetails, error) {
 	if m.getByIDFn != nil {
@@ -144,23 +146,21 @@ func TestTeacherService_PasswordMustBeHashedOnCreate(t *testing.T) {
 
 	svc := newTeacherServiceWithMocks()
 	svc.teacherRepo = &mockTeacherRepo{
-		createFn: func(t *model.NewTeacher) error {
+		createFn: func(t *model.NewTeacher) (*model.TeacherDetails, error) {
 			capturedTeacher = t
-			return nil
+			return &model.TeacherDetails{}, nil
 		},
 	}
 	svc.subjectRepo = &mockSubjectRepo{existsFn: func(id int) (bool, error) { return true, nil }}
 
-	err := svc.CreateTeacher(validNewTeacher())
+	_, err := svc.CreateTeacher(validNewTeacher())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if capturedTeacher == nil {
 		t.Fatal("expected CreateTeacher to be not nil, but it was not")
 	}
-	if capturedTeacher.Password == validNewTeacher().Password {
-		t.Error("expected password to be hashed, but it was not")
-	}
+	require.NotEqual(t, validNewTeacher().Password, capturedTeacher.Password, "expected password to be hashed, but it was not")
 }
 
 func TestTeacherService_CreateTeacher(t *testing.T) {
@@ -314,7 +314,7 @@ func TestTeacherService_CreateTeacher(t *testing.T) {
 			svc.teacherRepo = tc.teacherRepo
 			svc.subjectRepo = tc.subjectRepo
 
-			err := svc.CreateTeacher(tc.input)
+			_, err := svc.CreateTeacher(tc.input)
 			if !errors.Is(err, tc.wantErr) {
 				t.Errorf("got err %v, want %v", err, tc.wantErr)
 			}

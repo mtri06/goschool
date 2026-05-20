@@ -1,0 +1,12 @@
+services:
+  unit_test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: 'goschool-app-unit-test'
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+    env_file:
+      - .env.test
+    command: sh -c "go test $$(go list ./... | grep -v '/integration')"

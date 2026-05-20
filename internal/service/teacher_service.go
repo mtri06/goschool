@@ -14,7 +14,7 @@ type teacherSvcUserRepo interface {
 }
 
 type userSvcTeacherRepo interface {
-	CreateTeacher(newTeacher *model.NewTeacher) error
+	CreateTeacher(newTeacher *model.NewTeacher) (*model.TeacherDetails, error)
 	GetTeacherByID(id int) (*model.TeacherDetails, error)
 	TeacherExists(id int) (bool, error)
 	UpdateTeacher(teacherID int, update *model.UpdateTeacher) error
@@ -40,56 +40,57 @@ func NewTeacherService(userRepo teacherSvcUserRepo, teacherRepo userSvcTeacherRe
 	}
 }
 
-func (s *TeacherService) CreateTeacher(newTeacher *model.NewTeacher) error {
+func (s *TeacherService) CreateTeacher(newTeacher *model.NewTeacher) (*model.TeacherDetails, error) {
 	if err := validateGender(newTeacher.Gender); err != nil {
-		return NewError(err.Error(), "invalid_gender", ErrValidationFailed)
+		return nil, NewError(err.Error(), "invalid_gender", ErrValidationFailed)
 	}
 
 	if err := validatePassword(newTeacher.Password); err != nil {
-		return NewError(err.Error(), "invalid_password", ErrValidationFailed)
+		return nil, NewError(err.Error(), "invalid_password", ErrValidationFailed)
 	}
 
 	exists, err := s.userRepo.UsernameExists(newTeacher.Username)
 	if err != nil {
-		return fmt.Errorf("failed to check if username exists: %w", err)
+		return nil, fmt.Errorf("failed to check if username exists: %w", err)
 	}
 	if exists {
-		return NewError("username already exists", "username_exists", ErrValidationFailed)
+		return nil, NewError("username already exists", "username_exists", ErrValidationFailed)
 	}
 
 	if newTeacher.Email != nil {
 		*newTeacher.Email = strings.ToLower(*newTeacher.Email)
 		exists, err := s.userRepo.EmailExists(*newTeacher.Email)
 		if err != nil {
-			return fmt.Errorf("failed to check if email exists: %w", err)
+			return nil, fmt.Errorf("failed to check if email exists: %w", err)
 		}
 		if exists {
-			return NewError("email already exists", "email_exists", ErrValidationFailed)
+			return nil, NewError("email already exists", "email_exists", ErrValidationFailed)
 		}
 	}
 
 	hashedPassword, err := hashPassword(newTeacher.Password)
 	if err != nil {
-		return fmt.Errorf("failed to hash password: %w", err)
+		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 	newTeacher.Password = hashedPassword
 
 	if err := validateTeacherWorkingStatus(newTeacher.WorkingStatus); err != nil {
-		return NewError(err.Error(), "invalid_working_status", ErrValidationFailed)
+		return nil, NewError(err.Error(), "invalid_working_status", ErrValidationFailed)
 	}
 
 	if newTeacher.SubjectID != nil {
 		if exists, err := s.subjectRepo.Exists(*newTeacher.SubjectID); err != nil {
-			return err
+			return nil, err
 		} else if !exists {
-			return NewError(fmt.Sprintf("subject not found: %v", *newTeacher.SubjectID), "subject_not_found", ErrNotFound)
+			return nil, NewError(fmt.Sprintf("subject not found: %v", *newTeacher.SubjectID), "subject_not_found", ErrNotFound)
 		}
 	}
 
-	if err := s.teacherRepo.CreateTeacher(newTeacher); err != nil {
-		return fmt.Errorf("failed to create teacher: %w", err)
+	details, err := s.teacherRepo.CreateTeacher(newTeacher)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create teacher: %w", err)
 	}
-	return nil
+	return details, nil
 }
 
 func (s *TeacherService) GetTeacherByID(teacherID int) (*model.TeacherDetails, error) {
