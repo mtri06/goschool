@@ -6,7 +6,7 @@ services:
     container_name: 'goschool-app-dev'
     environment:
       PG_HOST: postgres
-      PG_PORT: 5432
+      PG_PORT: ${PG_PORT}
     env_file:
       - .env.dev
     ports:
@@ -24,8 +24,9 @@ services:
       POSTGRES_DB: ${PG_DB_NAME}
       POSTGRES_USER: ${PG_USER}
       POSTGRES_PASSWORD: ${PG_PASSWORD}
+      PGPORT: ${PG_PORT}
     ports:
-      - '5432:5432'
+      - '${PG_PORT}:${PG_PORT}'
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:

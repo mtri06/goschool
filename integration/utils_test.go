@@ -4,9 +4,20 @@ import (
 	"encoding/json"
 	"goschool/pkg/model"
 	"io"
+	"math/rand"
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+func toPtr[T any](v T) *T {
+	return &v
+}
+
+func pickRandom[T any](arr ...T) T {
+	return arr[rand.Intn(len(arr))]
+}
 
 func seedSubjects(t *testing.T, creCookies []*http.Cookie, subjectNames ...string) []int {
 	t.Helper()
@@ -28,4 +39,29 @@ func seedSubjects(t *testing.T, creCookies []*http.Cookie, subjectNames ...strin
 		subjectIDs = append(subjectIDs, subject.ID)
 	}
 	return subjectIDs
+}
+
+func seedTeachers(t *testing.T, creCookies []*http.Cookie, newTeachers ...model.NewTeacher) (ids []int) {
+	t.Helper()
+	for i, teacher := range newTeachers {
+		resp := requestJSON(t, http.MethodPost, "/teachers", teacher, withCookies(creCookies))
+		defer resp.Body.Close()
+
+		require.Equal(t, http.StatusCreated, resp.StatusCode, "failed to create teacher %d: expected 201, got %d", i, resp.StatusCode)
+
+		var teacherDetails model.TeacherDetails
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&teacherDetails), "decode teacher response")
+
+		ids = append(ids, teacherDetails.ID)
+	}
+	return ids
+}
+
+func logAsJSON(t *testing.T, v any) {
+	t.Helper()
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		t.Fatalf("failed to marshal to JSON: %v", err)
+	}
+	t.Log(string(data))
 }

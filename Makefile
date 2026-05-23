@@ -16,14 +16,18 @@ dev/volume_down:
 
 test/unit:
 	docker compose -f docker-compose.unit-test.yml --env-file .env.test up --build --abort-on-container-exit \
-	--exit-code-from unit_test --no-log-prefix --remove-orphans 
+	--exit-code-from unit_test --no-log-prefix --remove-orphans
 
 test/integration:
 	docker compose -f docker-compose.test.yml --env-file .env.test up --build --abort-on-container-exit \
 	--exit-code-from integration_test --attach integration_test --no-log-prefix --remove-orphans 
 
-test/postgres:
+test/integration/local:
 	docker compose -f docker-compose.test.yml --env-file .env.test up postgres -d
+	go test -v -count=1 ./integration/...
+	
+test/down:
+	docker compose -f docker-compose.test.yml --env-file .env.test down
 
 prod:
 	docker compose -f docker-compose.prod.yml --env-file .env.prod up --build -d

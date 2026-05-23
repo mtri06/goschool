@@ -19,7 +19,9 @@ type userSvcTeacherRepo interface {
 	TeacherExists(id int) (bool, error)
 	UpdateTeacher(teacherID int, update *model.UpdateTeacher) error
 	DeleteTeacher(teacherID int) error
-	ListTeachers(p *repo.Pagination, userFilters repo.Filters, teacherFilters repo.Filters) ([]model.TeacherDetails, int, error)
+	ListTeachers(
+		p *repo.Pagination, userFilters repo.Filters, teacherFilters repo.Filters, orderBy repo.OrderBy,
+	) ([]model.TeacherDetails, int, error)
 }
 
 type teacherSvcSubjectRepo interface {
@@ -108,8 +110,11 @@ func (s *TeacherService) ListTeachers(page, pageSize int, name, email, workingSt
 	if page < 1 {
 		page = constant.DefaultPage
 	}
-	if pageSize < 1 || pageSize > 100 {
+	if pageSize < 1 {
 		pageSize = constant.DefaultPageSize
+	}
+	if pageSize > 100 {
+		pageSize = 100
 	}
 	pagination := &repo.Pagination{
 		Page:     page,
@@ -131,7 +136,7 @@ func (s *TeacherService) ListTeachers(page, pageSize int, name, email, workingSt
 		teacherFilters = append(teacherFilters, repo.NewFilter("working_status", repo.OpEquals, workingStatus))
 	}
 
-	return s.teacherRepo.ListTeachers(pagination, userFilters, teacherFilters)
+	return s.teacherRepo.ListTeachers(pagination, userFilters, teacherFilters, nil)
 }
 
 func (s *TeacherService) UpdateTeacher(teacherID int, update *model.UpdateTeacher) error {

@@ -2,13 +2,18 @@ package service
 
 import (
 	"fmt"
+	"strings"
 
+	"goschool/internal/repository"
 	"goschool/pkg/model"
+
+	"github.com/rs/zerolog/log"
 )
 
 type subjectSvcSubjectRepo interface {
 	CreateSubject(newSubject *model.NewSubject) (*model.SubjectDetails, error)
 	ExistsByName(name string) (bool, error)
+	ListSubjects(status string, orderBy repository.OrderBy) ([]model.SubjectDetails, error)
 }
 
 type SubjectService struct {
@@ -39,4 +44,28 @@ func (s *SubjectService) CreateSubject(newSubject *model.NewSubject) (*model.Sub
 	}
 
 	return subject, nil
+}
+
+// ListSubjects returns all subjects with optional filtering and ordering
+func (s *SubjectService) ListSubjects(status string, orderBy []string) ([]model.SubjectDetails, error) {
+	var allowedOrderBy repository.OrderBy
+	for _, ob := range orderBy {
+		field := strings.TrimPrefix(ob, "-")
+		if field == "name" || field == "updated_at" {
+			allowedOrderBy = append(allowedOrderBy, ob)
+		}
+	}
+
+	log.Debug().Strs("orderBy", allowedOrderBy).Msg("Validated orderBy fields")
+
+	subjects, err := s.subjectRepo.ListSubjects(status, allowedOrderBy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list subjects: %w", err)
+	}
+
+	if subjects == nil {
+		subjects = []model.SubjectDetails{}
+	}
+
+	return subjects, nil
 }

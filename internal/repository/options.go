@@ -65,9 +65,10 @@ func (f Filters) toWhereClause() (where string, args []any, err error) {
 			return "", nil, fmt.Errorf("invalid operator: %s", item.Op)
 		}
 
-		field := item.Field
+		field := quoteIdent(item.Field)
+		alias := quoteIdent(item.alias)
 		if item.alias != "" {
-			field = fmt.Sprintf("%s.%s", item.alias, field)
+			field = fmt.Sprintf("%s.%s", alias, field)
 		}
 
 		if item.Op == OpIn {
@@ -108,4 +109,35 @@ func (p *Pagination) toLimitOffset() string {
 	}
 	offset := (p.Page - 1) * p.PageSize
 	return fmt.Sprintf("LIMIT %d OFFSET %d", p.PageSize, offset)
+}
+
+type OrderBy []string
+
+func (o OrderBy) toSQL() string {
+	if len(o) == 0 {
+		return ""
+	}
+	var validFields []string
+	for _, field := range o {
+		desc := false
+		if strings.HasPrefix(field, "-") {
+			desc = true
+			field = field[1:]
+		}
+		if desc {
+			field = quoteIdent(field) + " DESC"
+		} else {
+			field = quoteIdent(field) + " ASC"
+		}
+		validFields = append(validFields, field)
+	}
+	if len(validFields) == 0 {
+		return ""
+	}
+	return " ORDER BY " + strings.Join(validFields, ", ")
+}
+
+// quoteIdent safely quotes an SQL identifier (e.g. column or table name) to prevent SQL injection through identifiers.
+func quoteIdent(id string) string {
+	return `"` + strings.ReplaceAll(id, `"`, `""`) + `"`
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
+	"slices"
 	"sync"
 	"time"
 
@@ -76,10 +77,8 @@ func (r *TeacherRepository) CreateTeacher(newTeacher *model.NewTeacher) (*model.
 
 // ListTeachers returns a paginated list of teachers and the total count, with optional filters by name, email, and working status
 func (r *TeacherRepository) ListTeachers(
-	p *Pagination, userFilters Filters, teacherFilters Filters,
+	p *Pagination, userFilters Filters, teacherFilters Filters, orderBy OrderBy,
 ) ([]model.TeacherDetails, int, error) {
-	limitOffset := p.toLimitOffset()
-
 	userFilters.setAlias("u")
 	teacherFilters.setAlias("t")
 	filters := append(userFilters, teacherFilters...)
@@ -111,6 +110,9 @@ func (r *TeacherRepository) ListTeachers(
 	}()
 
 	go func() {
+		if !slices.Contains(orderBy, "created_at") {
+			orderBy = append(orderBy, "created_at")
+		}
 		defer wg.Done()
 		q := fmt.Sprintf(`
 			SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
@@ -119,9 +121,8 @@ func (r *TeacherRepository) ListTeachers(
 			FROM users u
 			JOIN user_teachers t ON t.user_id = u.id
 			LEFT JOIN subjects s ON s.id = t.subject_id
-			%s
-			%s
-		`, where, limitOffset)
+			%s %s %s
+		`, where, orderBy.toSQL(), p.toLimitOffset())
 		rows, err := r.db.Query(q, args...)
 		if err != nil {
 			listErr = fmt.Errorf("failed to list teachers: %w", err)

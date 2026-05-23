@@ -5,8 +5,8 @@ services:
       dockerfile: Dockerfile.test
     container_name: 'goschool-app-integration-test'
     environment:
-      PG_HOST: postgres
-      PG_PORT: 5432
+      PG_HOST: postgres # Use postgres instead of PG_HOST from env.
+      PG_PORT: ${PG_PORT}
     env_file:
       - .env.test
     depends_on:
@@ -20,11 +20,12 @@ services:
     image: postgres:16-alpine
     container_name: 'goschool-postgres-test'
     ports:
-      - '5432:5432'
+      - '${PG_PORT}:${PG_PORT}'
     environment:
       POSTGRES_DB: ${PG_DB_NAME}
       POSTGRES_USER: ${PG_USER}
       POSTGRES_PASSWORD: ${PG_PASSWORD}
+      PGPORT: ${PG_PORT}
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${PG_USER} -d ${PG_DB_NAME}']
       interval: 5s

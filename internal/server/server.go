@@ -15,8 +15,8 @@ type Server struct {
 	api *api.API
 }
 
+// New wires up all dependencies and returns a new Server instance
 func New(dbClient *sqlx.DB) *Server {
-
 	// Init repositories
 	userRepo := repository.NewUserRepository(dbClient)
 	teacherRepo := repository.NewTeacherRepository(dbClient)

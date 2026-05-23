@@ -11,6 +11,7 @@ import (
 
 func Init() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zerolog.LevelColors[zerolog.DebugLevel] = 33 // colorYellow
 	if os.Getenv("ENVIRONMENT") == "prod" {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	} else {

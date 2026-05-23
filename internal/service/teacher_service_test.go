@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"goschool/internal/repository"
+	repo "goschool/internal/repository"
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
 
@@ -43,7 +43,7 @@ type mockTeacherRepo struct {
 	updateFn        func(id int, u *model.UpdateTeacher) error
 	deleteFn        func(id int) error
 	listFn          func(
-		p *repository.Pagination, userFilter repository.Filters, teacherFilter repository.Filters,
+		p *repo.Pagination, userFilter repo.Filters, teacherFilter repo.Filters, orderBy repo.OrderBy,
 	) ([]model.TeacherDetails, int, error)
 }
 
@@ -78,10 +78,10 @@ func (m *mockTeacherRepo) DeleteTeacher(id int) error {
 	return nil
 }
 func (m *mockTeacherRepo) ListTeachers(
-	p *repository.Pagination, userFilter repository.Filters, teacherFilter repository.Filters,
+	p *repo.Pagination, userFilter repo.Filters, teacherFilter repo.Filters, orderBy repo.OrderBy,
 ) ([]model.TeacherDetails, int, error) {
 	if m.listFn != nil {
-		return m.listFn(p, userFilter, teacherFilter)
+		return m.listFn(p, userFilter, teacherFilter, orderBy)
 	}
 	return nil, 0, nil
 }
@@ -718,7 +718,7 @@ func TestTeacherService_ListTeachers_RepoError(t *testing.T) {
 
 	svc := newTeacherServiceWithMocks()
 	svc.teacherRepo = &mockTeacherRepo{
-		listFn: func(p *repository.Pagination, userFilter repository.Filters, teacherFilter repository.Filters) ([]model.TeacherDetails, int, error) {
+		listFn: func(*repo.Pagination, repo.Filters, repo.Filters, repo.OrderBy) ([]model.TeacherDetails, int, error) {
 			return nil, 0, dbErr
 		},
 	}
@@ -733,26 +733,26 @@ func TestTeacherService_ListTeachers_MustPassCorrectPaginationOptionToRepo(t *te
 	tests := []struct {
 		page     int
 		pageSize int
-		expect   repository.Pagination
+		expect   repo.Pagination
 	}{
-		{page: 1, pageSize: 10, expect: repository.Pagination{Page: 1, PageSize: 10}},
-		{page: 3, pageSize: 12, expect: repository.Pagination{Page: 3, PageSize: 12}},
-		{page: 15, pageSize: 34, expect: repository.Pagination{Page: 15, PageSize: 34}},
-		{page: 112, pageSize: 15, expect: repository.Pagination{Page: 112, PageSize: 15}},
-		{page: 1034, pageSize: 50, expect: repository.Pagination{Page: 1034, PageSize: 50}},
-		{page: 0, pageSize: 10, expect: repository.Pagination{Page: constant.DefaultPage, PageSize: 10}},
-		{page: -5, pageSize: 10, expect: repository.Pagination{Page: constant.DefaultPage, PageSize: 10}},
-		{page: 1, pageSize: 0, expect: repository.Pagination{Page: 1, PageSize: constant.DefaultPageSize}},
-		{page: 1, pageSize: -20, expect: repository.Pagination{Page: 1, PageSize: constant.DefaultPageSize}},
-		{page: 1, pageSize: 300, expect: repository.Pagination{Page: 1, PageSize: constant.DefaultPageSize}},
+		{page: 1, pageSize: 10, expect: repo.Pagination{Page: 1, PageSize: 10}},
+		{page: 3, pageSize: 12, expect: repo.Pagination{Page: 3, PageSize: 12}},
+		{page: 15, pageSize: 34, expect: repo.Pagination{Page: 15, PageSize: 34}},
+		{page: 112, pageSize: 15, expect: repo.Pagination{Page: 112, PageSize: 15}},
+		{page: 1034, pageSize: 50, expect: repo.Pagination{Page: 1034, PageSize: 50}},
+		{page: 0, pageSize: 10, expect: repo.Pagination{Page: constant.DefaultPage, PageSize: 10}},
+		{page: -5, pageSize: 10, expect: repo.Pagination{Page: constant.DefaultPage, PageSize: 10}},
+		{page: 1, pageSize: 0, expect: repo.Pagination{Page: 1, PageSize: constant.DefaultPageSize}},
+		{page: 1, pageSize: -20, expect: repo.Pagination{Page: 1, PageSize: constant.DefaultPageSize}},
+		{page: 1, pageSize: 300, expect: repo.Pagination{Page: 1, PageSize: 100}},
 	}
 
 	for _, tc := range tests {
-		var capturedPagination *repository.Pagination
+		var capturedPagination *repo.Pagination
 
 		svc := newTeacherServiceWithMocks()
 		svc.teacherRepo = &mockTeacherRepo{
-			listFn: func(p *repository.Pagination, userFilter repository.Filters, teacherFilter repository.Filters) ([]model.TeacherDetails, int, error) {
+			listFn: func(p *repo.Pagination, userFilter repo.Filters, teacherFilter repo.Filters, orderBy repo.OrderBy) ([]model.TeacherDetails, int, error) {
 				capturedPagination = p
 				return nil, 0, nil
 			},
@@ -803,12 +803,12 @@ func TestTeacherService_ListTeachers_MustPassFilterIfItIsNotZeroValue(t *testing
 	}
 
 	for _, tc := range tests {
-		var capturedUserFilter repository.Filters
-		var capturedTeacherFilter repository.Filters
+		var capturedUserFilter repo.Filters
+		var capturedTeacherFilter repo.Filters
 
 		svc := newTeacherServiceWithMocks()
 		svc.teacherRepo = &mockTeacherRepo{
-			listFn: func(p *repository.Pagination, userFilter repository.Filters, teacherFilter repository.Filters) ([]model.TeacherDetails, int, error) {
+			listFn: func(p *repo.Pagination, userFilter repo.Filters, teacherFilter repo.Filters, orderBy repo.OrderBy) ([]model.TeacherDetails, int, error) {
 				capturedUserFilter = userFilter
 				capturedTeacherFilter = teacherFilter
 				return nil, 0, nil

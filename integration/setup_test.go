@@ -10,10 +10,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog/log"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -49,14 +51,14 @@ func TestMain(m *testing.M) {
 
 func clearDB(t *testing.T) {
 	t.Helper()
-	tables := []string{"subjects", "classes", "teaching_assignments", "tokens"}
+	tables := []string{"user_teachers", "user_students", "subjects", "classes", "teaching_assignments", "tokens"}
 	for _, tbl := range tables {
 		if _, err := dbClient.Exec("DELETE FROM " + tbl); err != nil {
-			t.Fatalf("failed to cleanup table %s: %v", tbl, err)
+			panic(err)
 		}
 	}
 	if _, err := dbClient.Exec("DELETE FROM users WHERE username != $1", env.Env.AdminUsername); err != nil {
-		t.Fatalf("failed to cleanup users: %v", err)
+		panic(err)
 	}
 }
 
@@ -124,7 +126,9 @@ func loginAsAdmin(t *testing.T) []*http.Cookie {
 func decodeJSON(t *testing.T, resp *http.Response, v any) {
 	t.Helper()
 	defer resp.Body.Close()
-	if err := json.NewDecoder(resp.Body).Decode(v); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(v), "decode response body")
+}
+
+func itoa(n int) string {
+	return strconv.Itoa(n)
 }

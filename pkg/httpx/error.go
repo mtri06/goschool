@@ -86,6 +86,8 @@ func RenderError(w http.ResponseWriter, r *http.Request, errMap APIErrorMap, err
 		// No match found — log the raw error so it can be investigated.
 		log.Error().Err(err).Msg("Unhandled internal error")
 		apiErr = ErrUnknownInternal.Copy()
+	} else {
+		log.Debug().Err(err)
 	}
 
 	render.Status(r, apiErr.Status)

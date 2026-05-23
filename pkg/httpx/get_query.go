@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 // func URLParam(r *http.Request, key string) (string, error) {
@@ -100,4 +101,8 @@ func GetQueryBoolOptional(r *http.Request, key string) (*bool, error) {
 		return nil, ErrInvalidQuery.WithMsg(fmt.Sprintf("query `%v` must be a valid boolean", key))
 	}
 	return &value, nil
+}
+
+func GetQueryList(r *http.Request, key string) []string {
+	return strings.Split(r.URL.Query().Get(key), ",")
 }

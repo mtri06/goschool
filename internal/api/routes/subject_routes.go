@@ -11,6 +11,7 @@ import (
 func MountSubjectRoutes(router chi.Router, h *handler.SubjectHandler) {
 	r := chi.NewRouter()
 
+	r.With(mw.Auth).Get("/", h.GetAllSubjects)
 	r.With(mw.Auth, mw.RequireRole(constant.RoleAdmin)).Post("/", h.CreateSubject)
 
 	router.Mount("/subjects", r)
