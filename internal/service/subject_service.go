@@ -6,8 +6,6 @@ import (
 
 	"goschool/internal/repository"
 	"goschool/pkg/model"
-
-	"github.com/rs/zerolog/log"
 )
 
 type subjectSvcSubjectRepo interface {
@@ -47,18 +45,16 @@ func (s *SubjectService) CreateSubject(newSubject *model.NewSubject) (*model.Sub
 }
 
 // ListSubjects returns all subjects with optional filtering and ordering
-func (s *SubjectService) ListSubjects(status string, orderBy []string) ([]model.SubjectDetails, error) {
-	var allowedOrderBy repository.OrderBy
-	for _, ob := range orderBy {
+func (s *SubjectService) ListSubjects(status string, order []string) ([]model.SubjectDetails, error) {
+	var orderBy repository.OrderBy
+	for _, ob := range order {
 		field := strings.TrimPrefix(ob, "-")
 		if field == "name" || field == "updated_at" {
-			allowedOrderBy = append(allowedOrderBy, ob)
+			orderBy = append(orderBy, ob)
 		}
 	}
 
-	log.Debug().Strs("orderBy", allowedOrderBy).Msg("Validated orderBy fields")
-
-	subjects, err := s.subjectRepo.ListSubjects(status, allowedOrderBy)
+	subjects, err := s.subjectRepo.ListSubjects(status, orderBy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list subjects: %w", err)
 	}

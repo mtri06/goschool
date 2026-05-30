@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
+	"slices"
 	"sync"
 	"time"
 
@@ -165,7 +166,7 @@ func (r *StudentRepository) DeleteStudent(studentID int) error {
 // Filters on name/email go into userFilters; filters on class_id/year go into studentFilters.
 // When studentFilters are provided, student information is joined.
 func (r *StudentRepository) ListStudents(
-	p *Pagination, userFilters Filters, studentFilters Filters,
+	p *Pagination, userFilters Filters, studentFilters Filters, orderBy OrderBy,
 ) ([]model.StudentDetails, int, error) {
 	limitOffset := p.toLimitOffset()
 
@@ -201,6 +202,9 @@ func (r *StudentRepository) ListStudents(
 	}()
 
 	go func() {
+		if slices.Contains(orderBy, "created_at") {
+			orderBy = append(orderBy, "created_at")
+		}
 		defer wg.Done()
 		q := fmt.Sprintf(`
 			SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
@@ -209,9 +213,8 @@ func (r *StudentRepository) ListStudents(
 			FROM users u
 			JOIN user_students s ON s.user_id = u.id
 			LEFT JOIN classes c ON c.id = s.class_id
-			%s
-			%s
-		`, where, limitOffset)
+			%s %s %s
+		`, where, orderBy.toSQL(), limitOffset)
 		rows, err := r.db.Query(q, args...)
 		if err != nil {
 			listErr = fmt.Errorf("failed to list students: %w", err)

@@ -40,7 +40,7 @@ type mockStudentRepo struct {
 	studentExistsFn   func(id int) (bool, error)
 	updateStudentFn   func(id int, u *model.UpdateStudent) error
 	deleteStudentFn   func(id int) error
-	listStudentsFn    func(p *repository.Pagination, uf repository.Filters, sf repository.Filters) ([]model.StudentDetails, int, error)
+	listStudentsFn    func(p *repository.Pagination, uf repository.Filters, sf repository.Filters, orderBy repository.OrderBy) ([]model.StudentDetails, int, error)
 }
 
 func (m *mockStudentRepo) CreateStudent(newStudent *model.NewStudent) (*model.StudentDetails, error) {
@@ -73,9 +73,9 @@ func (m *mockStudentRepo) DeleteStudent(id int) error {
 	}
 	return nil
 }
-func (m *mockStudentRepo) ListStudents(p *repository.Pagination, uf repository.Filters, ef repository.Filters) ([]model.StudentDetails, int, error) {
+func (m *mockStudentRepo) ListStudents(p *repository.Pagination, uf repository.Filters, ef repository.Filters, orderBy repository.OrderBy) ([]model.StudentDetails, int, error) {
 	if m.listStudentsFn != nil {
-		return m.listStudentsFn(p, uf, ef)
+		return m.listStudentsFn(p, uf, ef, orderBy)
 	}
 	return []model.StudentDetails{}, 0, nil
 }
@@ -447,7 +447,7 @@ func TestStudentService_ListStudents(t *testing.T) {
 		{
 			name: "success",
 			studentRepo: &mockStudentRepo{
-				listStudentsFn: func(p *repository.Pagination, uf repository.Filters, ef repository.Filters) ([]model.StudentDetails, int, error) {
+				listStudentsFn: func(p *repository.Pagination, uf repository.Filters, ef repository.Filters, orderBy repository.OrderBy) ([]model.StudentDetails, int, error) {
 					return students, 1, nil
 				},
 			},
@@ -457,7 +457,7 @@ func TestStudentService_ListStudents(t *testing.T) {
 		{
 			name: "repo error",
 			studentRepo: &mockStudentRepo{
-				listStudentsFn: func(p *repository.Pagination, uf repository.Filters, ef repository.Filters) ([]model.StudentDetails, int, error) {
+				listStudentsFn: func(p *repository.Pagination, uf repository.Filters, ef repository.Filters, orderBy repository.OrderBy) ([]model.StudentDetails, int, error) {
 					return nil, 0, dbErr
 				},
 			},

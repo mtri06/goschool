@@ -20,7 +20,7 @@ type studentSvcStudentRepo interface {
 	StudentExists(id int) (bool, error)
 	UpdateStudent(studentID int, update *model.UpdateStudent) error
 	DeleteStudent(studentID int) error
-	ListStudents(p *repo.Pagination, userFilters repo.Filters, enrollmentFilters repo.Filters) ([]model.StudentDetails, int, error)
+	ListStudents(p *repo.Pagination, userFilters repo.Filters, enrollmentFilters repo.Filters, orderBy repo.OrderBy) ([]model.StudentDetails, int, error)
 }
 
 type studentSvcClassRepo interface {
@@ -134,7 +134,7 @@ func (s *StudentService) ListStudents(page, pageSize int, classID *int, graduate
 		studentFilters = append(studentFilters, repo.NewFilter("graduated", repo.OpEquals, *graduated))
 	}
 
-	return s.studentRepo.ListStudents(pagination, userFilters, studentFilters)
+	return s.studentRepo.ListStudents(pagination, userFilters, studentFilters, nil)
 }
 
 func (s *StudentService) UpdateStudent(studentID int, update *model.UpdateStudent) error {
