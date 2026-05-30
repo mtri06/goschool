@@ -52,6 +52,21 @@ func (f Filters) toWhereClause() (where string, args []any, err error) {
 		return "", nil, nil
 	}
 
+	condition, args, err := f.toConditionClause()
+	if err != nil {
+		return "", nil, err
+	}
+
+	where = "WHERE " + condition
+
+	return where, args, nil
+}
+
+func (f Filters) toConditionClause() (condition string, args []any, err error) {
+	if len(f) == 0 {
+		return "", nil, nil
+	}
+
 	args = make([]any, 0, len(f))
 	conditions := make([]string, 0, len(f))
 	for _, item := range f {
@@ -79,15 +94,15 @@ func (f Filters) toWhereClause() (where string, args []any, err error) {
 
 		args = append(args, item.Value)
 	}
-	where = "WHERE " + strings.Join(conditions, " AND ")
-	where, args, err = sqlx.In(where, args...)
+	condition = strings.Join(conditions, " AND ")
+	condition, args, err = sqlx.In(condition, args...)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to build filter query: %w", err)
+		return "", nil, fmt.Errorf("failed to build filter condition: %w", err)
 	}
 
-	where = sqlx.Rebind(sqlx.DOLLAR, where)
+	condition = sqlx.Rebind(sqlx.DOLLAR, condition)
 
-	return where, args, nil
+	return condition, args, nil
 }
 
 func (f Filters) setAlias(alias string) {
