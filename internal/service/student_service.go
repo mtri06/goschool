@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	repo "goschool/internal/repository"
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
 )
@@ -20,7 +19,7 @@ type studentSvcStudentRepo interface {
 	StudentExists(id int) (bool, error)
 	UpdateStudent(studentID int, update *model.UpdateStudent) error
 	DeleteStudent(studentID int) error
-	ListStudents(p *repo.Pagination, userFilters repo.Filters, enrollmentFilters repo.Filters, orderBy repo.OrderBy) ([]model.StudentDetails, int, error)
+	ListStudents(params model.ListStudentsParams) ([]model.StudentDetails, int, error)
 }
 
 type studentSvcClassRepo interface {
@@ -105,36 +104,29 @@ func (s *StudentService) GetStudentByID(studentID int) (*model.StudentDetails, e
 	return student, nil
 }
 
-func (s *StudentService) ListStudents(page, pageSize int, classID *int, graduated *bool, name, email string) ([]model.StudentDetails, int, error) {
-	if page < 1 {
-		page = constant.DefaultPage
+var listStudentsAllowedOrderBy = map[string]bool{
+	"id":         true,
+	"name":       true,
+	"updated_at": true,
+	"created_at": true,
+}
+
+func (s *StudentService) ListStudents(params model.ListStudentsParams) ([]model.StudentDetails, int, error) {
+	if params.Pagin.Page < 1 {
+		params.Pagin.Page = constant.DefaultPage
 	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = constant.DefaultPageSize
-	}
-	pagination := &repo.Pagination{
-		Page:     page,
-		PageSize: pageSize,
+	if params.Pagin.PageSize < 1 || params.Pagin.PageSize > 100 {
+		params.Pagin.PageSize = constant.DefaultPageSize
 	}
 
-	var userFilters repo.Filters
-	if name != "" {
-		userFilters = append(userFilters, repo.NewFilter("name", repo.OpLikeInsensitive, "%"+name+"%"))
+	for _, order := range params.OrderBy {
+		if !listStudentsAllowedOrderBy[order.Field] {
+			return nil, 0, NewError(fmt.Sprintf("invalid order by field: %s", order.Field), "invalid_order_by_field", ErrValidationFailed)
+		}
 	}
-	if email != "" {
-		email = strings.ToLower(email)
-		userFilters = append(userFilters, repo.NewFilter("email", repo.OpLike, "%"+email+"%"))
-	}
+	params.OrderBy = append(params.OrderBy, model.Order{Field: "id"})
 
-	var studentFilters repo.Filters
-	if classID != nil {
-		studentFilters = append(studentFilters, repo.NewFilter("class_id", repo.OpEquals, *classID))
-	}
-	if graduated != nil {
-		studentFilters = append(studentFilters, repo.NewFilter("graduated", repo.OpEquals, *graduated))
-	}
-
-	return s.studentRepo.ListStudents(pagination, userFilters, studentFilters, nil)
+	return s.studentRepo.ListStudents(params)
 }
 
 func (s *StudentService) UpdateStudent(studentID int, update *model.UpdateStudent) error {

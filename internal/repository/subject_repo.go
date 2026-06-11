@@ -10,21 +10,11 @@ import (
 )
 
 type SubjectRepository struct {
-	db       *sqlx.DB
-	fieldMap map[string]struct{}
+	db *sqlx.DB
 }
 
 func NewSubjectRepository(db *sqlx.DB) *SubjectRepository {
-	return &SubjectRepository{
-		db: db,
-		fieldMap: map[string]struct{}{
-			"id":         {},
-			"name":       {},
-			"status":     {},
-			"created_at": {},
-			"updated_at": {},
-		},
-	}
+	return &SubjectRepository{db: db}
 }
 
 // Exists checks if a subject with the given ID exists in the database
@@ -67,20 +57,18 @@ func (r *SubjectRepository) CreateSubject(newSubject *model.NewSubject) (*model.
 	return subject, nil
 }
 
-// ListSubjects returns a list of subjects with optional filtering by status and ordering.
-// orderBy should be pre-validated by the caller (service layer).
-// Valid values: empty string (no order), "name", "updated_at", "-name", "-updated_at"
-func (r *SubjectRepository) ListSubjects(status string, orderBy OrderBy) ([]model.SubjectDetails, error) {
+// GetAllSubjects returns all subjects with optional filtering and ordering
+func (r *SubjectRepository) GetAllSubjects(params model.GetAllSubjectsParams) ([]model.SubjectDetails, error) {
 	query := "SELECT id, name, status, created_at, updated_at FROM subjects"
 
-	var args []interface{}
-	if status != "" {
-		query += " WHERE status = $1"
-		args = append(args, status)
+	var args []any
+	if params.Filter.Status != nil {
+		query += " WHERE status = $1 "
+		args = append(args, *params.Filter.Status)
 	}
 
 	// Apply ordering if provided
-	query += orderBy.toSQL()
+	query += orderByToSQL(params.OrderBy)
 
 	var subjects []model.SubjectDetails
 	err := r.db.Select(&subjects, query, args...)

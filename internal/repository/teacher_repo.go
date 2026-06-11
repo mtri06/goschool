@@ -2,10 +2,11 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
-	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -75,16 +76,44 @@ func (r *TeacherRepository) CreateTeacher(newTeacher *model.NewTeacher) (*model.
 	return details, nil
 }
 
+var listTeachersOrderByMap = map[string]string{
+	"id":        "u.id",
+	"name":      "u.name",
+	"subjectId": "t.subject_id",
+}
+
 // ListTeachers returns a paginated list of teachers and the total count, with optional filters by name, email, and working status
-func (r *TeacherRepository) ListTeachers(
-	p *Pagination, userFilters Filters, teacherFilters Filters, orderBy OrderBy,
-) ([]model.TeacherDetails, int, error) {
-	userFilters.setAlias("u")
-	teacherFilters.setAlias("t")
-	filters := append(userFilters, teacherFilters...)
-	where, args, err := filters.toWhereClause()
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to build query condition: %w", err)
+func (r *TeacherRepository) ListTeachers(params model.ListTeachersParams) ([]model.TeacherDetails, int, error) {
+	var args []interface{}
+	var whereClauses []string
+	whereClauses = append(whereClauses, "u.role = $1")
+	args = append(args, constant.RoleTeacher)
+
+	if params.Filter.Name != nil {
+		whereClauses = append(whereClauses, "u.name ILIKE $"+fmt.Sprint(len(args)+1))
+		args = append(args, "%"+*params.Filter.Name+"%")
+	}
+	if params.Filter.Email != nil {
+		whereClauses = append(whereClauses, "u.email ILIKE $"+fmt.Sprint(len(args)+1))
+		args = append(args, "%"+*params.Filter.Email+"%")
+	}
+	if params.Filter.WorkingStatus != nil {
+		whereClauses = append(whereClauses, "t.working_status = $"+fmt.Sprint(len(args)+1))
+		args = append(args, *params.Filter.WorkingStatus)
+	}
+	if params.Filter.SubjectID != nil {
+		whereClauses = append(whereClauses, "t.subject_id = $"+fmt.Sprint(len(args)+1))
+		args = append(args, *params.Filter.SubjectID)
+	}
+
+	where := "WHERE " + strings.Join(whereClauses, " AND ")
+
+	for i := range params.OrderBy {
+		mField, ok := listTeachersOrderByMap[params.OrderBy[i].Field]
+		if !ok {
+			return nil, 0, fmt.Errorf("invalid order by field: %s", params.OrderBy[i].Field)
+		}
+		params.OrderBy[i].Field = mField
 	}
 
 	var (
@@ -99,20 +128,15 @@ func (r *TeacherRepository) ListTeachers(
 
 	go func() {
 		defer wg.Done()
-		q := "SELECT COUNT(*) FROM users u "
-		if len(teacherFilters) > 0 {
-			q += "JOIN user_teachers t ON t.user_id = u.id "
-		}
-		q += where
+		q := `SELECT COUNT(*) FROM users u 
+		JOIN user_teachers t ON t.user_id = u.id 
+		` + where
 		if err := r.db.Get(&total, q, args...); err != nil {
 			countErr = fmt.Errorf("failed to count teachers: %w", err)
 		}
 	}()
 
 	go func() {
-		if !slices.Contains(orderBy, "created_at") {
-			orderBy = append(orderBy, "created_at")
-		}
 		defer wg.Done()
 		q := fmt.Sprintf(`
 			SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
@@ -122,7 +146,7 @@ func (r *TeacherRepository) ListTeachers(
 			JOIN user_teachers t ON t.user_id = u.id
 			LEFT JOIN subjects s ON s.id = t.subject_id
 			%s %s %s
-		`, where, orderBy.toSQL(), p.toLimitOffset())
+		`, where, orderByToSQL(params.OrderBy), paginationToSQL(params.Pagin))
 		rows, err := r.db.Query(q, args...)
 		if err != nil {
 			listErr = fmt.Errorf("failed to list teachers: %w", err)
@@ -154,11 +178,9 @@ func (r *TeacherRepository) ListTeachers(
 
 	wg.Wait()
 
-	if countErr != nil {
-		return nil, 0, fmt.Errorf("failed to count teachers: %w", countErr)
-	}
-	if listErr != nil {
-		return nil, 0, fmt.Errorf("failed to list teachers: %w", listErr)
+	err := errors.Join(countErr, listErr)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	return teachers, total, nil

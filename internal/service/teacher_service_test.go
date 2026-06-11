@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	repo "goschool/internal/repository"
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
 
@@ -42,9 +41,7 @@ type mockTeacherRepo struct {
 	teacherExistsFn func(id int) (bool, error)
 	updateFn        func(id int, u *model.UpdateTeacher) error
 	deleteFn        func(id int) error
-	listFn          func(
-		p *repo.Pagination, userFilter repo.Filters, teacherFilter repo.Filters, orderBy repo.OrderBy,
-	) ([]model.TeacherDetails, int, error)
+	listFn          func(params model.ListTeachersParams) ([]model.TeacherDetails, int, error)
 }
 
 func (m *mockTeacherRepo) CreateTeacher(t *model.NewTeacher) (*model.TeacherDetails, error) {
@@ -77,11 +74,9 @@ func (m *mockTeacherRepo) DeleteTeacher(id int) error {
 	}
 	return nil
 }
-func (m *mockTeacherRepo) ListTeachers(
-	p *repo.Pagination, userFilter repo.Filters, teacherFilter repo.Filters, orderBy repo.OrderBy,
-) ([]model.TeacherDetails, int, error) {
+func (m *mockTeacherRepo) ListTeachers(params model.ListTeachersParams) ([]model.TeacherDetails, int, error) {
 	if m.listFn != nil {
-		return m.listFn(p, userFilter, teacherFilter, orderBy)
+		return m.listFn(params)
 	}
 	return nil, 0, nil
 }
@@ -718,12 +713,12 @@ func TestTeacherService_ListTeachers_RepoError(t *testing.T) {
 
 	svc := newTeacherServiceWithMocks()
 	svc.teacherRepo = &mockTeacherRepo{
-		listFn: func(*repo.Pagination, repo.Filters, repo.Filters, repo.OrderBy) ([]model.TeacherDetails, int, error) {
+		listFn: func(params model.ListTeachersParams) ([]model.TeacherDetails, int, error) {
 			return nil, 0, dbErr
 		},
 	}
 
-	_, _, err := svc.ListTeachers(10, 11, "", "", "")
+	_, _, err := svc.ListTeachers(model.ListTeachersParams{Pagin: model.Pagination{Page: 10, PageSize: 11}})
 	if !errors.Is(err, dbErr) {
 		t.Errorf("expected error %v, got %v", dbErr, err)
 	}
@@ -733,117 +728,37 @@ func TestTeacherService_ListTeachers_MustPassCorrectPaginationOptionToRepo(t *te
 	tests := []struct {
 		page     int
 		pageSize int
-		expect   repo.Pagination
+		expect   model.Pagination
 	}{
-		{page: 1, pageSize: 10, expect: repo.Pagination{Page: 1, PageSize: 10}},
-		{page: 3, pageSize: 12, expect: repo.Pagination{Page: 3, PageSize: 12}},
-		{page: 15, pageSize: 34, expect: repo.Pagination{Page: 15, PageSize: 34}},
-		{page: 112, pageSize: 15, expect: repo.Pagination{Page: 112, PageSize: 15}},
-		{page: 1034, pageSize: 50, expect: repo.Pagination{Page: 1034, PageSize: 50}},
-		{page: 0, pageSize: 10, expect: repo.Pagination{Page: constant.DefaultPage, PageSize: 10}},
-		{page: -5, pageSize: 10, expect: repo.Pagination{Page: constant.DefaultPage, PageSize: 10}},
-		{page: 1, pageSize: 0, expect: repo.Pagination{Page: 1, PageSize: constant.DefaultPageSize}},
-		{page: 1, pageSize: -20, expect: repo.Pagination{Page: 1, PageSize: constant.DefaultPageSize}},
-		{page: 1, pageSize: 300, expect: repo.Pagination{Page: 1, PageSize: 100}},
+		{page: 1, pageSize: 10, expect: model.Pagination{Page: 1, PageSize: 10}},
+		{page: 3, pageSize: 12, expect: model.Pagination{Page: 3, PageSize: 12}},
+		{page: 15, pageSize: 34, expect: model.Pagination{Page: 15, PageSize: 34}},
+		{page: 112, pageSize: 15, expect: model.Pagination{Page: 112, PageSize: 15}},
+		{page: 1034, pageSize: 50, expect: model.Pagination{Page: 1034, PageSize: 50}},
+		{page: 0, pageSize: 10, expect: model.Pagination{Page: constant.DefaultPage, PageSize: 10}},
+		{page: -5, pageSize: 10, expect: model.Pagination{Page: constant.DefaultPage, PageSize: 10}},
+		{page: 1, pageSize: 0, expect: model.Pagination{Page: 1, PageSize: constant.DefaultPageSize}},
+		{page: 1, pageSize: -20, expect: model.Pagination{Page: 1, PageSize: constant.DefaultPageSize}},
+		{page: 1, pageSize: 300, expect: model.Pagination{Page: 1, PageSize: 100}},
 	}
 
 	for _, tc := range tests {
-		var capturedPagination *repo.Pagination
+		var capturedPagination *model.Pagination
 
 		svc := newTeacherServiceWithMocks()
 		svc.teacherRepo = &mockTeacherRepo{
-			listFn: func(p *repo.Pagination, userFilter repo.Filters, teacherFilter repo.Filters, orderBy repo.OrderBy) ([]model.TeacherDetails, int, error) {
-				capturedPagination = p
+			listFn: func(params model.ListTeachersParams) ([]model.TeacherDetails, int, error) {
+				capturedPagination = &params.Pagin
 				return nil, 0, nil
 			},
 		}
 
-		_, _, err := svc.ListTeachers(tc.page, tc.pageSize, "", "", "")
+		_, _, err := svc.ListTeachers(model.ListTeachersParams{Pagin: model.Pagination{Page: tc.page, PageSize: tc.pageSize}})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if capturedPagination == nil || *capturedPagination != tc.expect {
 			t.Errorf("expected pagination %+v, got %+v", tc.expect, capturedPagination)
-		}
-	}
-}
-
-func TestTeacherService_ListTeachers_MustPassFilterIfItIsNotZeroValue(t *testing.T) {
-	tests := []struct {
-		name, email, workingStatus string
-		expectUserFilterToHave     []string
-		expectTeacherFilterToHave  []string
-	}{
-		{
-			name:                   "Arthur Morgan",
-			expectUserFilterToHave: []string{"name"},
-		},
-		{
-			name:                   "John Marston",
-			email:                  "test@example.com",
-			expectUserFilterToHave: []string{"name", "email"},
-		},
-		{
-			workingStatus:             "active",
-			expectTeacherFilterToHave: []string{"working_status"},
-		},
-		{
-			email:                     "abc@gmail.com",
-			workingStatus:             "inactive",
-			expectUserFilterToHave:    []string{"email"},
-			expectTeacherFilterToHave: []string{"working_status"},
-		},
-		{
-			name:                      "Minh Tri",
-			email:                     "abc@gmail.com",
-			workingStatus:             "inactive",
-			expectUserFilterToHave:    []string{"name", "email"},
-			expectTeacherFilterToHave: []string{"working_status"},
-		},
-	}
-
-	for _, tc := range tests {
-		var capturedUserFilter repo.Filters
-		var capturedTeacherFilter repo.Filters
-
-		svc := newTeacherServiceWithMocks()
-		svc.teacherRepo = &mockTeacherRepo{
-			listFn: func(p *repo.Pagination, userFilter repo.Filters, teacherFilter repo.Filters, orderBy repo.OrderBy) ([]model.TeacherDetails, int, error) {
-				capturedUserFilter = userFilter
-				capturedTeacherFilter = teacherFilter
-				return nil, 0, nil
-			},
-		}
-
-		_, _, err := svc.ListTeachers(1, 10, tc.name, tc.email, tc.workingStatus)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		for _, field := range tc.expectUserFilterToHave {
-			found := false
-			for _, f := range capturedUserFilter {
-				if f.Field == field {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Errorf("expected user filter to have field %s, but it was not found in %+v", field, capturedUserFilter)
-			}
-		}
-
-		for _, field := range tc.expectTeacherFilterToHave {
-			found := false
-			for _, f := range capturedTeacherFilter {
-				if f.Field == field {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Errorf("expected teacher filter to have field %s, but it was not found in %+v", field, capturedTeacherFilter)
-			}
 		}
 	}
 }

@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	repo "goschool/internal/repository"
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
 	"strings"
@@ -19,9 +18,7 @@ type userSvcTeacherRepo interface {
 	TeacherExists(id int) (bool, error)
 	UpdateTeacher(teacherID int, update *model.UpdateTeacher) error
 	DeleteTeacher(teacherID int) error
-	ListTeachers(
-		p *repo.Pagination, userFilters repo.Filters, teacherFilters repo.Filters, orderBy repo.OrderBy,
-	) ([]model.TeacherDetails, int, error)
+	ListTeachers(params model.ListTeachersParams) ([]model.TeacherDetails, int, error)
 }
 
 type teacherSvcSubjectRepo interface {
@@ -106,37 +103,41 @@ func (s *TeacherService) GetTeacherByID(teacherID int) (*model.TeacherDetails, e
 	return teacher, nil
 }
 
-func (s *TeacherService) ListTeachers(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error) {
-	if page < 1 {
-		page = constant.DefaultPage
+var listTeachersAllowedOrderBy = map[string]bool{
+	"id":         true,
+	"name":       true,
+	"updated_at": true,
+	"created_at": true,
+}
+
+func (s *TeacherService) ListTeachers(params model.ListTeachersParams) ([]model.TeacherDetails, int, error) {
+	if params.Pagin.Page < 1 {
+		params.Pagin.Page = constant.DefaultPage
 	}
-	if pageSize < 1 {
-		pageSize = constant.DefaultPageSize
+	if params.Pagin.PageSize < 1 {
+		params.Pagin.PageSize = constant.DefaultPageSize
 	}
-	if pageSize > 100 {
-		pageSize = 100
-	}
-	pagination := &repo.Pagination{
-		Page:     page,
-		PageSize: pageSize,
+	if params.Pagin.PageSize > 100 {
+		params.Pagin.PageSize = 100
 	}
 
-	userFilters := repo.Filters{
-		repo.NewFilter("role", repo.OpEquals, constant.RoleTeacher),
+	for _, order := range params.OrderBy {
+		if !listTeachersAllowedOrderBy[order.Field] {
+			return nil, 0, NewError(fmt.Sprintf("invalid order by field: %s", order.Field), "invalid_order_by_field", ErrValidationFailed)
+		}
 	}
-	if name != "" {
-		userFilters = append(userFilters, repo.NewFilter("name", repo.OpLikeInsensitive, "%"+name+"%"))
-	}
-	if email != "" {
-		email = strings.ToLower(email)
-		userFilters = append(userFilters, repo.NewFilter("email", repo.OpLike, "%"+email+"%"))
-	}
-	var teacherFilters repo.Filters
-	if workingStatus != "" {
-		teacherFilters = append(teacherFilters, repo.NewFilter("working_status", repo.OpEquals, workingStatus))
+	params.OrderBy = append(params.OrderBy, model.Order{Field: "id"})
+
+	teachers, total, err := s.teacherRepo.ListTeachers(params)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list teachers: %w", err)
 	}
 
-	return s.teacherRepo.ListTeachers(pagination, userFilters, teacherFilters, nil)
+	if teachers == nil {
+		teachers = []model.TeacherDetails{}
+	}
+
+	return teachers, total, nil
 }
 
 func (s *TeacherService) UpdateTeacher(teacherID int, update *model.UpdateTeacher) error {

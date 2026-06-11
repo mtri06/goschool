@@ -2,157 +2,47 @@ package repository
 
 import (
 	"fmt"
+	"goschool/pkg/model"
 	"strings"
-
-	"github.com/jmoiron/sqlx"
 )
 
-type Operator string
-
-const (
-	OpEquals          Operator = "="
-	OpNotEquals       Operator = "!="
-	OpGreaterThan     Operator = ">"
-	OpLessThan        Operator = "<"
-	OpGreaterEqual    Operator = ">="
-	OpLessEqual       Operator = "<="
-	OpLike            Operator = "LIKE"
-	OpLikeInsensitive Operator = "ILIKE"
-	OpIn              Operator = "IN"
-)
-
-var allowedOperators = map[Operator]struct{}{
-	OpEquals:          {},
-	OpNotEquals:       {},
-	OpGreaterThan:     {},
-	OpLessThan:        {},
-	OpGreaterEqual:    {},
-	OpLessEqual:       {},
-	OpLike:            {},
-	OpLikeInsensitive: {},
-	OpIn:              {},
-}
-
-type Filter struct {
-	Field string
-	Op    Operator
-	Value any
-
-	alias string
-}
-
-func NewFilter(field string, op Operator, value any) *Filter {
-	return &Filter{Field: field, Op: op, Value: value}
-}
-
-type Filters []*Filter
-
-func (f Filters) toWhereClause() (where string, args []any, err error) {
-	if len(f) == 0 {
-		return "", nil, nil
-	}
-
-	condition, args, err := f.toConditionClause()
-	if err != nil {
-		return "", nil, err
-	}
-
-	where = "WHERE " + condition
-
-	return where, args, nil
-}
-
-func (f Filters) toConditionClause() (condition string, args []any, err error) {
-	if len(f) == 0 {
-		return "", nil, nil
-	}
-
-	args = make([]any, 0, len(f))
-	conditions := make([]string, 0, len(f))
-	for _, item := range f {
-		if item == nil {
-			continue
-		}
-		if item.Field == "" {
-			return "", nil, fmt.Errorf("filter item field cannot be empty")
-		}
-		if _, ok := allowedOperators[item.Op]; !ok {
-			return "", nil, fmt.Errorf("invalid operator: %s", item.Op)
-		}
-
-		field := quoteIdent(item.Field)
-		alias := quoteIdent(item.alias)
-		if item.alias != "" {
-			field = fmt.Sprintf("%s.%s", alias, field)
-		}
-
-		if item.Op == OpIn {
-			conditions = append(conditions, fmt.Sprintf("%s IN (?)", field))
-		} else {
-			conditions = append(conditions, fmt.Sprintf("%s %s ?", field, item.Op))
-		}
-
-		args = append(args, item.Value)
-	}
-	condition = strings.Join(conditions, " AND ")
-	condition, args, err = sqlx.In(condition, args...)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to build filter condition: %w", err)
-	}
-
-	condition = sqlx.Rebind(sqlx.DOLLAR, condition)
-
-	return condition, args, nil
-}
-
-func (f Filters) setAlias(alias string) {
-	for _, item := range f {
-		if item != nil {
-			item.alias = alias
-		}
-	}
-}
-
-type Pagination struct {
-	Page     int
-	PageSize int
-}
-
-func (p *Pagination) toLimitOffset() string {
-	if p == nil {
-		return ""
-	}
+func paginationToSQL(p model.Pagination) string {
 	offset := (p.Page - 1) * p.PageSize
 	return fmt.Sprintf("LIMIT %d OFFSET %d", p.PageSize, offset)
 }
 
-type OrderBy []string
-
-func (o OrderBy) toSQL() string {
+func orderByToSQL(o model.OrderBy) string {
 	if len(o) == 0 {
 		return ""
 	}
-	var validFields []string
-	for _, field := range o {
-		desc := false
-		if strings.HasPrefix(field, "-") {
-			desc = true
-			field = field[1:]
+
+	var orderExps []string
+	for _, order := range o {
+		if order.Field == "" {
+			continue
 		}
-		if desc {
-			field = quoteIdent(field) + " DESC"
-		} else {
-			field = quoteIdent(field) + " ASC"
+
+		exp := quoteField(order.Field)
+		if order.Desc {
+			exp += " DESC"
 		}
-		validFields = append(validFields, field)
+
+		orderExps = append(orderExps, exp)
 	}
-	if len(validFields) == 0 {
-		return ""
-	}
-	return " ORDER BY " + strings.Join(validFields, ", ")
+
+	sql := " ORDER BY " + strings.Join(orderExps, ", ")
+	return sql
 }
 
 // quoteIdent safely quotes an SQL identifier (e.g. column or table name) to prevent SQL injection through identifiers.
 func quoteIdent(id string) string {
 	return `"` + strings.ReplaceAll(id, `"`, `""`) + `"`
+}
+
+func quoteField(field string) string {
+	parts := strings.SplitN(field, ".", 2)
+	if len(parts) == 2 {
+		return fmt.Sprintf("%s.%s", quoteIdent(parts[0]), quoteIdent(parts[1]))
+	}
+	return quoteIdent(parts[0])
 }

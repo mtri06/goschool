@@ -7,12 +7,11 @@ import (
 	"goschool/pkg/model"
 
 	"github.com/go-chi/render"
-	"github.com/rs/zerolog/log"
 )
 
 type SubjectSvc interface {
 	CreateSubject(newSubject *model.NewSubject) (*model.SubjectDetails, error)
-	ListSubjects(status string, orderBy []string) ([]model.SubjectDetails, error)
+	GetAllSubjects(params model.GetAllSubjectsParams) ([]model.SubjectDetails, error)
 }
 
 type SubjectHandler struct {
@@ -44,14 +43,25 @@ func (h *SubjectHandler) CreateSubject(w http.ResponseWriter, r *http.Request) {
 
 // GetAllSubjects handles GET request to retrieve all subjects with optional filtering and ordering
 func (h *SubjectHandler) GetAllSubjects(w http.ResponseWriter, r *http.Request) {
-	status := httpx.GetQueryOrDefault(r, "status", "")
-	orderBy := httpx.GetQueryList(r, "orderBy")
-	log.Debug().Str("status", status).Strs("orderBy", orderBy).Msg("Received GetAllSubjects request")
+	status := httpx.GetQueryOptional(r, "status")
+	order := httpx.GetQueryList(r, "order")
 
-	subjects, err := h.subjectSvc.ListSubjects(status, orderBy)
+	filter := model.ListSubjectsFilter{
+		Status: status,
+	}
+
+	params := model.GetAllSubjectsParams{
+		Filter:  filter,
+		OrderBy: parseOrderBy(order),
+	}
+
+	subjects, err := h.subjectSvc.GetAllSubjects(params)
 	if err != nil {
 		httpx.RenderError(w, r, h.errMap, err)
 		return
+	}
+	if subjects == nil {
+		subjects = []model.SubjectDetails{}
 	}
 
 	render.JSON(w, r, map[string]any{

@@ -13,7 +13,7 @@ import (
 type StudentSvc interface {
 	CreateStudent(newStudent *model.NewStudent) (*model.StudentDetails, error)
 	GetStudentByID(studentID int) (*model.StudentDetails, error)
-	ListStudents(page, pageSize int, classID *int, graduated *bool, name, email string) ([]model.StudentDetails, int, error)
+	ListStudents(params model.ListStudentsParams) ([]model.StudentDetails, int, error)
 	UpdateStudent(studentID int, update *model.UpdateStudent) error
 	DeleteStudent(studentID int) error
 }
@@ -73,6 +73,8 @@ func (h *StudentHandler) GetStudents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	order := httpx.GetQueryList(r, "order")
+
 	classID, err := httpx.GetQueryIntOptional(r, "classId")
 	if err != nil {
 		httpx.RenderError(w, r, h.errMap, err)
@@ -83,10 +85,21 @@ func (h *StudentHandler) GetStudents(w http.ResponseWriter, r *http.Request) {
 		httpx.RenderError(w, r, h.errMap, err)
 		return
 	}
-	name := httpx.GetQueryOrDefault(r, "name", "")
-	email := httpx.GetQueryOrDefault(r, "email", "")
+	name := httpx.GetQueryOptional(r, "name")
+	email := httpx.GetQueryOptional(r, "email")
 
-	students, total, err := h.studentSvc.ListStudents(page, pageSize, classID, graduated, name, email)
+	params := model.ListStudentsParams{
+		Filter: model.ListStudentsFilter{
+			ClassID:   classID,
+			Graduated: graduated,
+			Name:      name,
+			Email:     email,
+		},
+		Pagin:   model.NewPagination(page, pageSize),
+		OrderBy: parseOrderBy(order),
+	}
+
+	students, total, err := h.studentSvc.ListStudents(params)
 	if err != nil {
 		httpx.RenderError(w, r, h.errMap, err)
 		return

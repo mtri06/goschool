@@ -2,16 +2,14 @@ package service
 
 import (
 	"fmt"
-	"strings"
 
-	"goschool/internal/repository"
 	"goschool/pkg/model"
 )
 
 type subjectSvcSubjectRepo interface {
 	CreateSubject(newSubject *model.NewSubject) (*model.SubjectDetails, error)
 	ExistsByName(name string) (bool, error)
-	ListSubjects(status string, orderBy repository.OrderBy) ([]model.SubjectDetails, error)
+	GetAllSubjects(params model.GetAllSubjectsParams) ([]model.SubjectDetails, error)
 }
 
 type SubjectService struct {
@@ -44,17 +42,23 @@ func (s *SubjectService) CreateSubject(newSubject *model.NewSubject) (*model.Sub
 	return subject, nil
 }
 
-// ListSubjects returns all subjects with optional filtering and ordering
-func (s *SubjectService) ListSubjects(status string, order []string) ([]model.SubjectDetails, error) {
-	var orderBy repository.OrderBy
-	for _, ob := range order {
-		field := strings.TrimPrefix(ob, "-")
-		if field == "name" || field == "updated_at" {
-			orderBy = append(orderBy, ob)
+var getAllSubjectsAllowedOrderBy = map[string]bool{
+	"id":         true,
+	"name":       true,
+	"updated_at": true,
+	"created_at": true,
+}
+
+// GetAllSubjects returns all subjects with optional filtering and ordering
+func (s *SubjectService) GetAllSubjects(params model.GetAllSubjectsParams) ([]model.SubjectDetails, error) {
+	for _, order := range params.OrderBy {
+		if !getAllSubjectsAllowedOrderBy[order.Field] {
+			return nil, NewError(fmt.Sprintf("invalid order by field: %s", order.Field), "invalid_order_by_field", ErrValidationFailed)
 		}
 	}
+	params.OrderBy = append(params.OrderBy, model.Order{Field: "id"})
 
-	subjects, err := s.subjectRepo.ListSubjects(status, orderBy)
+	subjects, err := s.subjectRepo.GetAllSubjects(params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list subjects: %w", err)
 	}

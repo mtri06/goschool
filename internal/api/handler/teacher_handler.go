@@ -14,7 +14,7 @@ type TeacherSvc interface {
 	CreateTeacher(newTeacher *model.NewTeacher) (*model.TeacherDetails, error)
 	GetTeacherByID(teacherID int) (*model.TeacherDetails, error)
 	UpdateTeacher(teacherID int, update *model.UpdateTeacher) error
-	ListTeachers(page, pageSize int, name, email, workingStatus string) ([]model.TeacherDetails, int, error)
+	ListTeachers(params model.ListTeachersParams) ([]model.TeacherDetails, int, error)
 	DeleteTeacher(teacherID int) error
 }
 
@@ -108,11 +108,23 @@ func (h *TeacherHandler) GetTeachers(w http.ResponseWriter, r *http.Request) {
 		httpx.RenderError(w, r, h.errMap, err)
 		return
 	}
-	name := httpx.GetQueryOrDefault(r, "name", "")
-	email := httpx.GetQueryOrDefault(r, "email", "")
-	workingStatus := httpx.GetQueryOrDefault(r, "workingStatus", "")
+	name := httpx.GetQueryOptional(r, "name")
+	email := httpx.GetQueryOptional(r, "email")
+	workingStatus := httpx.GetQueryOptional(r, "workingStatus")
 
-	teachers, total, err := h.teacherSvc.ListTeachers(page, pageSize, name, email, workingStatus)
+	order := httpx.GetQueryList(r, "order")
+
+	params := model.ListTeachersParams{
+		Filter: model.ListTeacherFilter{
+			Name:          name,
+			Email:         email,
+			WorkingStatus: workingStatus,
+		},
+		Pagin:   model.NewPagination(page, pageSize),
+		OrderBy: parseOrderBy(order),
+	}
+
+	teachers, total, err := h.teacherSvc.ListTeachers(params)
 	if err != nil {
 		httpx.RenderError(w, r, h.errMap, err)
 		return

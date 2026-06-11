@@ -1,6 +1,8 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 type NewStudent struct {
 	Username      string    `json:"username" validate:"required"`
@@ -19,6 +21,18 @@ type UpdateStudent struct {
 	DateOfBirth   time.Time `json:"dateOfBirth" validate:"required"`
 	Gender        string    `json:"gender" validate:"required"`
 	AdmissionDate time.Time `json:"admissionDate" validate:"required"`
+}
+
+type ListStudentsFilter struct {
+	Name      *string
+	Email     *string
+	ClassID   *int
+	Graduated *bool
+}
+type ListStudentsParams struct {
+	Filter  ListStudentsFilter
+	OrderBy OrderBy
+	Pagin   Pagination
 }
 
 type StudentDetailsClass struct {

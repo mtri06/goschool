@@ -91,6 +91,14 @@ func GetQueryBoolOrDefault(r *http.Request, key string, defaultVal bool) (bool, 
 	return value, nil
 }
 
+func GetQueryOptional(r *http.Request, key string) *string {
+	value := r.URL.Query().Get(key)
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
 func GetQueryBoolOptional(r *http.Request, key string) (*bool, error) {
 	valueStr := r.URL.Query().Get(key)
 	if valueStr == "" {

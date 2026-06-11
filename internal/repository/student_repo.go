@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
-	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -162,21 +162,49 @@ func (r *StudentRepository) DeleteStudent(studentID int) error {
 	return nil
 }
 
+var listStudentOrderByMap = map[string]string{
+	"id":         "u.id",
+	"name":       "u.name",
+	"class_id":   "s.class_id",
+	"created_at": "u.created_at",
+	"updated_at": "u.updated_at",
+}
+
 // ListStudents returns a paginated list of students with optional filters.
 // Filters on name/email go into userFilters; filters on class_id/year go into studentFilters.
 // When studentFilters are provided, student information is joined.
-func (r *StudentRepository) ListStudents(
-	p *Pagination, userFilters Filters, studentFilters Filters, orderBy OrderBy,
-) ([]model.StudentDetails, int, error) {
-	limitOffset := p.toLimitOffset()
+func (r *StudentRepository) ListStudents(params model.ListStudentsParams) ([]model.StudentDetails, int, error) {
+	var args []any
+	var whereClauses []string
 
-	userFilters = append(userFilters, NewFilter("role", OpEquals, constant.RoleStudent))
-	userFilters.setAlias("u")
-	studentFilters.setAlias("s")
-	filters := append(userFilters, studentFilters...)
-	where, args, err := filters.toWhereClause()
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to build query condition: %w", err)
+	whereClauses = append(whereClauses, "u.role = $1")
+	args = append(args, constant.RoleStudent)
+	if params.Filter.Name != nil {
+		whereClauses = append(whereClauses, "u.name ILIKE $"+fmt.Sprint(len(args)+1))
+		args = append(args, "%"+*params.Filter.Name+"%")
+	}
+	if params.Filter.Email != nil {
+		email := strings.ToLower(*params.Filter.Email)
+		whereClauses = append(whereClauses, "u.email ILIKE $"+fmt.Sprint(len(args)+1))
+		args = append(args, "%"+email+"%")
+	}
+	if params.Filter.ClassID != nil {
+		whereClauses = append(whereClauses, "s.class_id = $"+fmt.Sprint(len(args)+1))
+		args = append(args, *params.Filter.ClassID)
+	}
+	if params.Filter.Graduated != nil {
+		whereClauses = append(whereClauses, "s.graduated = $"+fmt.Sprint(len(args)+1))
+		args = append(args, *params.Filter.Graduated)
+	}
+
+	where := "WHERE " + strings.Join(whereClauses, " AND ")
+
+	for i := range params.OrderBy {
+		mField, ok := listStudentOrderByMap[params.OrderBy[i].Field]
+		if !ok {
+			return nil, 0, fmt.Errorf("invalid order by field: %s", params.OrderBy[i].Field)
+		}
+		params.OrderBy[i].Field = mField
 	}
 
 	var (
@@ -191,20 +219,15 @@ func (r *StudentRepository) ListStudents(
 
 	go func() {
 		defer wg.Done()
-		q := "SELECT COUNT(*) FROM users u "
-		if len(studentFilters) > 0 {
-			q += "JOIN user_students s ON s.user_id = u.id "
-		}
-		q += where
+		q := `SELECT COUNT(*) FROM users u 
+			JOIN user_students s ON s.user_id = u.id
+			` + where
 		if err := r.db.Get(&total, q, args...); err != nil {
 			countErr = fmt.Errorf("failed to count students: %w", err)
 		}
 	}()
 
 	go func() {
-		if slices.Contains(orderBy, "created_at") {
-			orderBy = append(orderBy, "created_at")
-		}
 		defer wg.Done()
 		q := fmt.Sprintf(`
 			SELECT u.id, u.username, u.email, u.name, u.date_of_birth, u.gender,
@@ -214,7 +237,7 @@ func (r *StudentRepository) ListStudents(
 			JOIN user_students s ON s.user_id = u.id
 			LEFT JOIN classes c ON c.id = s.class_id
 			%s %s %s
-		`, where, orderBy.toSQL(), limitOffset)
+		`, where, orderByToSQL(params.OrderBy), paginationToSQL(params.Pagin))
 		rows, err := r.db.Query(q, args...)
 		if err != nil {
 			listErr = fmt.Errorf("failed to list students: %w", err)
@@ -245,7 +268,7 @@ func (r *StudentRepository) ListStudents(
 
 	wg.Wait()
 
-	err = errors.Join(countErr, listErr)
+	err := errors.Join(countErr, listErr)
 	if err != nil {
 		return nil, 0, err
 	}

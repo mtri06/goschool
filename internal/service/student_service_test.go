@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"goschool/internal/repository"
 	"goschool/pkg/model"
 
 	"github.com/stretchr/testify/require"
@@ -40,7 +39,7 @@ type mockStudentRepo struct {
 	studentExistsFn   func(id int) (bool, error)
 	updateStudentFn   func(id int, u *model.UpdateStudent) error
 	deleteStudentFn   func(id int) error
-	listStudentsFn    func(p *repository.Pagination, uf repository.Filters, sf repository.Filters, orderBy repository.OrderBy) ([]model.StudentDetails, int, error)
+	listStudentsFn    func(params model.ListStudentsParams) ([]model.StudentDetails, int, error)
 }
 
 func (m *mockStudentRepo) CreateStudent(newStudent *model.NewStudent) (*model.StudentDetails, error) {
@@ -73,9 +72,9 @@ func (m *mockStudentRepo) DeleteStudent(id int) error {
 	}
 	return nil
 }
-func (m *mockStudentRepo) ListStudents(p *repository.Pagination, uf repository.Filters, ef repository.Filters, orderBy repository.OrderBy) ([]model.StudentDetails, int, error) {
+func (m *mockStudentRepo) ListStudents(params model.ListStudentsParams) ([]model.StudentDetails, int, error) {
 	if m.listStudentsFn != nil {
-		return m.listStudentsFn(p, uf, ef, orderBy)
+		return m.listStudentsFn(params)
 	}
 	return []model.StudentDetails{}, 0, nil
 }
@@ -447,7 +446,7 @@ func TestStudentService_ListStudents(t *testing.T) {
 		{
 			name: "success",
 			studentRepo: &mockStudentRepo{
-				listStudentsFn: func(p *repository.Pagination, uf repository.Filters, ef repository.Filters, orderBy repository.OrderBy) ([]model.StudentDetails, int, error) {
+				listStudentsFn: func(params model.ListStudentsParams) ([]model.StudentDetails, int, error) {
 					return students, 1, nil
 				},
 			},
@@ -457,7 +456,7 @@ func TestStudentService_ListStudents(t *testing.T) {
 		{
 			name: "repo error",
 			studentRepo: &mockStudentRepo{
-				listStudentsFn: func(p *repository.Pagination, uf repository.Filters, ef repository.Filters, orderBy repository.OrderBy) ([]model.StudentDetails, int, error) {
+				listStudentsFn: func(params model.ListStudentsParams) ([]model.StudentDetails, int, error) {
 					return nil, 0, dbErr
 				},
 			},
@@ -470,7 +469,7 @@ func TestStudentService_ListStudents(t *testing.T) {
 			svc := newStudentServiceWithMocks()
 			svc.studentRepo = tc.studentRepo
 
-			got, total, err := svc.ListStudents(1, 20, nil, nil, "", "")
+			got, total, err := svc.ListStudents(model.ListStudentsParams{Pagin: model.Pagination{Page: 1, PageSize: 20}})
 			if !errors.Is(err, tc.wantErr) {
 				t.Errorf("got err %v, want %v", err, tc.wantErr)
 			}

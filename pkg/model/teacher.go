@@ -1,6 +1,8 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 type NewTeacher struct {
 	Username      string    `json:"username" validate:"required"`
@@ -9,7 +11,7 @@ type NewTeacher struct {
 	Name          string    `json:"name" validate:"required"`
 	DateOfBirth   time.Time `json:"dateOfBirth" validate:"required"`
 	Gender        string    `json:"gender" validate:"required"`
-	SubjectID     *int    `json:"subjectId"`
+	SubjectID     *int      `json:"subjectId"`
 	HireDate      time.Time `json:"hireDate" validate:"required"`
 	WorkingStatus string    `json:"workingStatus" validate:"required"`
 }
@@ -19,17 +21,29 @@ type UpdateTeacher struct {
 	Name          string    `json:"name" validate:"required"`
 	DateOfBirth   time.Time `json:"dateOfBirth" validate:"required"`
 	Gender        string    `json:"gender" validate:"required"`
-	SubjectID     *int    `json:"subjectId"`
+	SubjectID     *int      `json:"subjectId"`
 	HireDate      time.Time `json:"hireDate" validate:"required"`
 	WorkingStatus string    `json:"workingStatus" validate:"required"`
 }
 
+type ListTeacherFilter struct {
+	Name          *string
+	Email         *string
+	WorkingStatus *string
+	SubjectID     *int
+}
+type ListTeachersParams struct {
+	Filter  ListTeacherFilter
+	OrderBy OrderBy
+	Pagin   Pagination
+}
+
 type TeacherDetailsSubject struct {
-	ID   int  `json:"id"`
+	ID   int    `json:"id"`
 	Name string `json:"name"`
 }
 type TeacherDetails struct {
-	ID            int                  `json:"id" db:"id"`
+	ID            int                    `json:"id" db:"id"`
 	Username      string                 `json:"username" db:"username"`
 	Email         *string                `json:"email" db:"email"`
 	Name          string                 `json:"name" db:"name"`
