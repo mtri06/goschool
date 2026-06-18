@@ -112,5 +112,9 @@ func GetQueryBoolOptional(r *http.Request, key string) (*bool, error) {
 }
 
 func GetQueryList(r *http.Request, key string) []string {
+	valStr := r.URL.Query().Get(key)
+	if valStr == "" {
+		return nil
+	}
 	return strings.Split(r.URL.Query().Get(key), ",")
 }
