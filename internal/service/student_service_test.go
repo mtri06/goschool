@@ -15,13 +15,13 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockStudentUserRepo struct {
-	emailExistsFn    func(email string, excludeIDs ...int) (bool, error)
+	emailExistsFn    func(email string) (bool, error)
 	usernameExistsFn func(username string) (bool, error)
 }
 
-func (m *mockStudentUserRepo) EmailExists(email string, excludeIDs ...int) (bool, error) {
+func (m *mockStudentUserRepo) EmailExists(email string) (bool, error) {
 	if m.emailExistsFn != nil {
-		return m.emailExistsFn(email, excludeIDs...)
+		return m.emailExistsFn(email)
 	}
 	return false, nil
 }
@@ -202,7 +202,7 @@ func TestStudentService_CreateStudent(t *testing.T) {
 			name:  "email already exists",
 			input: validNewStudent(),
 			userRepo: &mockStudentUserRepo{
-				emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return true, nil },
+				emailExistsFn: func(email string) (bool, error) { return true, nil },
 			},
 			wantErr: ErrValidationFailed,
 		},
@@ -226,7 +226,7 @@ func TestStudentService_CreateStudent(t *testing.T) {
 			name:  "email check fails",
 			input: validNewStudent(),
 			userRepo: &mockStudentUserRepo{
-				emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return false, dbErr },
+				emailExistsFn: func(email string) (bool, error) { return false, dbErr },
 			},
 			wantErr: dbErr,
 		},
@@ -338,13 +338,13 @@ func TestStudentService_UpdateStudent(t *testing.T) {
 		{
 			name:     "email already exists",
 			input:    validUpdateStudent(),
-			userRepo: &mockStudentUserRepo{emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return true, nil }},
+			userRepo: &mockStudentUserRepo{emailExistsFn: func(email string) (bool, error) { return true, nil }},
 			wantErr:  ErrValidationFailed,
 		},
 		{
 			name:     "email check fails",
 			input:    validUpdateStudent(),
-			userRepo: &mockStudentUserRepo{emailExistsFn: func(email string, excludeIDs ...int) (bool, error) { return false, dbErr }},
+			userRepo: &mockStudentUserRepo{emailExistsFn: func(email string) (bool, error) { return false, dbErr }},
 			wantErr:  dbErr,
 		},
 		{

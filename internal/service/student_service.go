@@ -8,12 +8,12 @@ import (
 	"goschool/pkg/model"
 )
 
-type studentSvcUserRepo interface {
-	EmailExists(email string, excludeIDs ...int) (bool, error)
+type studentUserRepo interface {
+	EmailExists(email string) (bool, error)
 	UsernameExists(username string) (bool, error)
 }
 
-type studentSvcStudentRepo interface {
+type studentRepo interface {
 	CreateStudent(newStudent *model.NewStudent) (*model.StudentDetails, error)
 	GetStudentByID(id int) (*model.StudentDetails, error)
 	StudentExists(id int) (bool, error)
@@ -22,18 +22,18 @@ type studentSvcStudentRepo interface {
 	ListStudents(params model.ListStudentsParams) ([]model.StudentDetails, int, error)
 }
 
-type studentSvcClassRepo interface {
+type studentClassRepo interface {
 	ClassExists(id int) (bool, error)
 }
 
 type StudentService struct {
-	userRepo    studentSvcUserRepo
-	studentRepo studentSvcStudentRepo
-	classRepo   studentSvcClassRepo
+	userRepo    studentUserRepo
+	studentRepo studentRepo
+	classRepo   studentClassRepo
 }
 
 func NewStudentService(
-	userRepo studentSvcUserRepo, studentRepo studentSvcStudentRepo, classRepo studentSvcClassRepo,
+	userRepo studentUserRepo, studentRepo studentRepo, classRepo studentClassRepo,
 ) *StudentService {
 	return &StudentService{
 		userRepo:    userRepo,
@@ -145,7 +145,7 @@ func (s *StudentService) UpdateStudent(studentID int, update *model.UpdateStuden
 	if update.Email != nil {
 		email := strings.ToLower(*update.Email)
 		update.Email = &email
-		exists, err := s.userRepo.EmailExists(email, studentID)
+		exists, err := s.userRepo.EmailExists(email)
 		if err != nil {
 			return fmt.Errorf("failed to check if email exists: %w", err)
 		}

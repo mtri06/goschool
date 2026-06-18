@@ -24,17 +24,17 @@ var (
 	allRoles = []string{constant.RoleAdmin, constant.RoleTeacher, constant.RoleStudent}
 )
 
-type userSvcUserRepo interface {
+type userRepo interface {
 	UsernameExists(username string) (bool, error)
 	CreateUser(user *model.User) error
-	EmailExists(email string, excludeIDs ...int) (bool, error)
+	EmailExists(email string) (bool, error)
 }
 
 type UserService struct {
-	userRepo userSvcUserRepo
+	userRepo userRepo
 }
 
-func NewUserService(userRepo userSvcUserRepo) *UserService {
+func NewUserService(userRepo userRepo) *UserService {
 	return &UserService{userRepo: userRepo}
 }
 

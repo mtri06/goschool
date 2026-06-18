@@ -7,12 +7,12 @@ import (
 	"strings"
 )
 
-type teacherSvcUserRepo interface {
-	EmailExists(email string, excludeIDs ...int) (bool, error)
+type teacherUserRepo interface {
+	EmailExists(email string) (bool, error)
 	UsernameExists(username string) (bool, error)
 }
 
-type userSvcTeacherRepo interface {
+type teacherRepo interface {
 	CreateTeacher(newTeacher *model.NewTeacher) (*model.TeacherDetails, error)
 	GetTeacherByID(id int) (*model.TeacherDetails, error)
 	TeacherExists(id int) (bool, error)
@@ -21,17 +21,17 @@ type userSvcTeacherRepo interface {
 	ListTeachers(params model.ListTeachersParams) ([]model.TeacherDetails, int, error)
 }
 
-type teacherSvcSubjectRepo interface {
+type teacherSubjectRepo interface {
 	Exists(id int) (bool, error)
 }
 
 type TeacherService struct {
-	userRepo    teacherSvcUserRepo
-	teacherRepo userSvcTeacherRepo
-	subjectRepo teacherSvcSubjectRepo
+	userRepo    teacherUserRepo
+	teacherRepo teacherRepo
+	subjectRepo teacherSubjectRepo
 }
 
-func NewTeacherService(userRepo teacherSvcUserRepo, teacherRepo userSvcTeacherRepo, subjectRepo teacherSvcSubjectRepo) *TeacherService {
+func NewTeacherService(userRepo teacherUserRepo, teacherRepo teacherRepo, subjectRepo teacherSubjectRepo) *TeacherService {
 	return &TeacherService{
 		userRepo:    userRepo,
 		teacherRepo: teacherRepo,
@@ -168,7 +168,7 @@ func (s *TeacherService) UpdateTeacher(teacherID int, update *model.UpdateTeache
 	if update.Email != nil {
 		email := strings.ToLower(*update.Email)
 		update.Email = &email
-		exists, err := s.userRepo.EmailExists(email, teacherID)
+		exists, err := s.userRepo.EmailExists(email)
 		if err != nil {
 			return fmt.Errorf("failed to check if email exists: %w", err)
 		}

@@ -18,20 +18,9 @@ func NewUserRepository(db *sqlx.DB) *UserRepository {
 }
 
 // EmailExists checks if a user with the given email exists in the database.
-// Optional excludeIDs can be passed to exclude specific user IDs from the check.
-func (r *UserRepository) EmailExists(email string, excludeIDs ...int) (bool, error) {
+func (r *UserRepository) EmailExists(email string) (bool, error) {
 	var exists bool
-	var err error
-	if len(excludeIDs) > 0 {
-		query, args, qErr := sqlx.In("SELECT EXISTS(SELECT 1 FROM users WHERE email = ? AND id NOT IN (?))", email, excludeIDs)
-		if qErr != nil {
-			return false, fmt.Errorf("failed to build email exists query: %w", qErr)
-		}
-		query = r.db.Rebind(query)
-		err = r.db.Get(&exists, query, args...)
-	} else {
-		err = r.db.Get(&exists, "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", email)
-	}
+	err := r.db.Get(&exists, "SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", email)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if email exists: %w", err)
 	}

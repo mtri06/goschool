@@ -6,17 +6,17 @@ import (
 	"goschool/pkg/model"
 )
 
-type subjectSvcSubjectRepo interface {
+type subjectRepo interface {
 	CreateSubject(newSubject *model.NewSubject) (*model.SubjectDetails, error)
 	ExistsByName(name string) (bool, error)
 	GetAllSubjects(params model.GetAllSubjectsParams) ([]model.SubjectDetails, error)
 }
 
 type SubjectService struct {
-	subjectRepo subjectSvcSubjectRepo
+	subjectRepo subjectRepo
 }
 
-func NewSubjectService(subjectRepo subjectSvcSubjectRepo) *SubjectService {
+func NewSubjectService(subjectRepo subjectRepo) *SubjectService {
 	return &SubjectService{
 		subjectRepo: subjectRepo,
 	}
