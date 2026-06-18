@@ -22,7 +22,7 @@ type authUserRepo interface {
 }
 
 type authTokenRepo interface {
-	CreateToken(token *model.Token) error
+	Create(token *model.Token) error
 	RevokeByBody(body string) error
 	GetByBody(body string) (*model.Token, error)
 	MarkUsed(id int) error
@@ -76,7 +76,7 @@ func (s *AuthService) Login(username, password string) (*model.AuthTokens, error
 		Type:      constant.TokenTypeRefresh,
 		ExpiresAt: time.Now().Add(env.Env.JWTRefreshExpires),
 	}
-	if err := s.tokenRepo.CreateToken(token); err != nil {
+	if err := s.tokenRepo.Create(token); err != nil {
 		return nil, fmt.Errorf("failed to store refresh token: %w", err)
 	}
 
@@ -199,7 +199,7 @@ func (s *AuthService) RefreshTokens(accessToken, refreshToken string) (*model.Au
 		Type:      constant.TokenTypeRefresh,
 		ExpiresAt: time.Now().Add(env.Env.JWTRefreshExpires),
 	}
-	if err := s.tokenRepo.CreateToken(newRToken); err != nil {
+	if err := s.tokenRepo.Create(newRToken); err != nil {
 		return nil, fmt.Errorf("failed to store refresh token: %w", err)
 	}
 

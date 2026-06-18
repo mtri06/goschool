@@ -26,8 +26,7 @@ var (
 
 type userRepo interface {
 	UsernameExists(username string) (bool, error)
-	CreateUser(user *model.User) error
-	EmailExists(email string) (bool, error)
+	Create(user *model.User) error
 }
 
 type UserService struct {
@@ -64,7 +63,7 @@ func (s *UserService) SeedAdminUser() {
 		Gender:      constant.GenderOther,
 	}
 
-	if err := s.userRepo.CreateUser(admin); err != nil {
+	if err := s.userRepo.Create(admin); err != nil {
 		log.Fatal().Err(err).Msgf("failed to create admin user: %s", username)
 	}
 

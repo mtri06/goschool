@@ -37,8 +37,8 @@ func (r *SubjectRepository) ExistsByName(name string) (bool, error) {
 	return exists, nil
 }
 
-// CreateSubject creates a new subject in the database
-func (r *SubjectRepository) CreateSubject(newSubject *model.NewSubject) (*model.SubjectDetails, error) {
+// Create creates a new subject in the database
+func (r *SubjectRepository) Create(newSubject *model.NewSubject) (*model.SubjectDetails, error) {
 	subject := &model.SubjectDetails{
 		Name:   newSubject.Name,
 		Status: constant.SubjectStatusActive,

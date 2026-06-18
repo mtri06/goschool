@@ -7,7 +7,7 @@ import (
 )
 
 type subjectRepo interface {
-	CreateSubject(newSubject *model.NewSubject) (*model.SubjectDetails, error)
+	Create(newSubject *model.NewSubject) (*model.SubjectDetails, error)
 	ExistsByName(name string) (bool, error)
 	GetAllSubjects(params model.GetAllSubjectsParams) ([]model.SubjectDetails, error)
 }
@@ -34,7 +34,7 @@ func (s *SubjectService) CreateSubject(newSubject *model.NewSubject) (*model.Sub
 	}
 
 	// Create subject with status "active" by default
-	subject, err := s.subjectRepo.CreateSubject(newSubject)
+	subject, err := s.subjectRepo.Create(newSubject)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create subject: %w", err)
 	}
@@ -42,7 +42,7 @@ func (s *SubjectService) CreateSubject(newSubject *model.NewSubject) (*model.Sub
 	return subject, nil
 }
 
-var getAllSubjectsAllowedOrderBy = map[string]bool{
+var subjectAllowedOrderBy = map[string]bool{
 	"id":         true,
 	"name":       true,
 	"updated_at": true,
@@ -52,7 +52,7 @@ var getAllSubjectsAllowedOrderBy = map[string]bool{
 // GetAllSubjects returns all subjects with optional filtering and ordering
 func (s *SubjectService) GetAllSubjects(params model.GetAllSubjectsParams) ([]model.SubjectDetails, error) {
 	for _, order := range params.OrderBy {
-		if !getAllSubjectsAllowedOrderBy[order.Field] {
+		if !subjectAllowedOrderBy[order.Field] {
 			return nil, NewError(fmt.Sprintf("invalid order by field: %s", order.Field), "invalid_order_by_field", ErrValidationFailed)
 		}
 	}

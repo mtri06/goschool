@@ -49,16 +49,16 @@ func (m *mockUserRepo) GetByID(id int) (*model.User, error) {
 }
 
 type mockTokenRepo struct {
-	createTokenFn   func(token *model.Token) error
+	createFn        func(token *model.Token) error
 	revokeByBodyFn  func(body string) error
 	getByBodyFn     func(body string) (*model.Token, error)
 	markUsedFn      func(id int) error
 	blacklistUserFn func(userID int) error
 }
 
-func (m *mockTokenRepo) CreateToken(token *model.Token) error {
-	if m.createTokenFn != nil {
-		return m.createTokenFn(token)
+func (m *mockTokenRepo) Create(token *model.Token) error {
+	if m.createFn != nil {
+		return m.createFn(token)
 	}
 	return nil
 }

@@ -76,7 +76,7 @@ func (r *TeacherRepository) CreateTeacher(newTeacher *model.NewTeacher) (*model.
 	return details, nil
 }
 
-var listTeachersOrderByMap = map[string]string{
+var teacherOrderByMap = map[string]string{
 	"id":        "u.id",
 	"name":      "u.name",
 	"subjectId": "t.subject_id",
@@ -109,7 +109,7 @@ func (r *TeacherRepository) ListTeachers(params model.ListTeachersParams) ([]mod
 	where := "WHERE " + strings.Join(whereClauses, " AND ")
 
 	for i := range params.OrderBy {
-		mField, ok := listTeachersOrderByMap[params.OrderBy[i].Field]
+		mField, ok := teacherOrderByMap[params.OrderBy[i].Field]
 		if !ok {
 			return nil, 0, fmt.Errorf("invalid order by field: %s", params.OrderBy[i].Field)
 		}
@@ -186,8 +186,8 @@ func (r *TeacherRepository) ListTeachers(params model.ListTeachersParams) ([]mod
 	return teachers, total, nil
 }
 
-// GetTeacherByID retrieves a teacher with full details by user ID.
-func (r *TeacherRepository) GetTeacherByID(id int) (*model.TeacherDetails, error) {
+// GetTeacherDetailsByID retrieves a teacher with full details by user ID.
+func (r *TeacherRepository) GetTeacherDetailsByID(id int) (*model.TeacherDetails, error) {
 	var t model.TeacherDetails
 	var subjectName *string
 	err := r.db.QueryRow(`

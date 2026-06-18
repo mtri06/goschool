@@ -64,7 +64,7 @@ func (r *UserRepository) GetByUsername(username string) (*model.User, error) {
 }
 
 // Create inserts a new user and returns the generated ID
-func (r *UserRepository) CreateUser(user *model.User) error {
+func (r *UserRepository) Create(user *model.User) error {
 	if user == nil {
 		return fmt.Errorf("user cannot be nil")
 	}

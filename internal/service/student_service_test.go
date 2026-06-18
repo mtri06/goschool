@@ -34,45 +34,45 @@ func (m *mockStudentUserRepo) UsernameExists(username string) (bool, error) {
 }
 
 type mockStudentRepo struct {
-	createStudentFunc func(newStudent *model.NewStudent) (*model.StudentDetails, error)
-	getByIDFn         func(id int) (*model.StudentDetails, error)
-	studentExistsFn   func(id int) (bool, error)
-	updateStudentFn   func(id int, u *model.UpdateStudent) error
-	deleteStudentFn   func(id int) error
-	listStudentsFn    func(params model.ListStudentsParams) ([]model.StudentDetails, int, error)
+	createStudentFunc       func(newStudent *model.NewStudent) (*model.StudentDetails, error)
+	getStudentDetailsByIDFn func(id int) (*model.StudentDetails, error)
+	studentExistsFn         func(id int) (bool, error)
+	updateStudentFn         func(id int, u *model.UpdateStudent) error
+	deleteStudentFn         func(id int) error
+	listStudentsFn          func(params model.ListStudentsParams) ([]model.StudentDetails, int, error)
 }
 
-func (m *mockStudentRepo) CreateStudent(newStudent *model.NewStudent) (*model.StudentDetails, error) {
+func (m *mockStudentRepo) Create(newStudent *model.NewStudent) (*model.StudentDetails, error) {
 	if m.createStudentFunc != nil {
 		return m.createStudentFunc(newStudent)
 	}
 	return nil, nil
 }
-func (m *mockStudentRepo) GetStudentByID(id int) (*model.StudentDetails, error) {
-	if m.getByIDFn != nil {
-		return m.getByIDFn(id)
+func (m *mockStudentRepo) GetDetailsByID(id int) (*model.StudentDetails, error) {
+	if m.getStudentDetailsByIDFn != nil {
+		return m.getStudentDetailsByIDFn(id)
 	}
 	return nil, nil
 }
-func (m *mockStudentRepo) StudentExists(id int) (bool, error) {
+func (m *mockStudentRepo) Exists(id int) (bool, error) {
 	if m.studentExistsFn != nil {
 		return m.studentExistsFn(id)
 	}
 	return true, nil
 }
-func (m *mockStudentRepo) UpdateStudent(id int, u *model.UpdateStudent) error {
+func (m *mockStudentRepo) Update(id int, u *model.UpdateStudent) error {
 	if m.updateStudentFn != nil {
 		return m.updateStudentFn(id, u)
 	}
 	return nil
 }
-func (m *mockStudentRepo) DeleteStudent(id int) error {
+func (m *mockStudentRepo) Delete(id int) error {
 	if m.deleteStudentFn != nil {
 		return m.deleteStudentFn(id)
 	}
 	return nil
 }
-func (m *mockStudentRepo) ListStudents(params model.ListStudentsParams) ([]model.StudentDetails, int, error) {
+func (m *mockStudentRepo) List(params model.ListStudentsParams) ([]model.StudentDetails, int, error) {
 	if m.listStudentsFn != nil {
 		return m.listStudentsFn(params)
 	}
@@ -83,7 +83,7 @@ type mockStudentClassRepo struct {
 	classExistsFn func(id int) (bool, error)
 }
 
-func (m *mockStudentClassRepo) ClassExists(id int) (bool, error) {
+func (m *mockStudentClassRepo) Exists(id int) (bool, error) {
 	if m.classExistsFn != nil {
 		return m.classExistsFn(id)
 	}
@@ -150,7 +150,7 @@ func TestStudentService_CreateStudent_PasswordMustBeHashed(t *testing.T) {
 	}
 }
 
-func TestStudentService_CreateStudent(t *testing.T) {
+func TestStudentService_Create(t *testing.T) {
 	dbErr := errors.New("db error")
 
 	tests := []struct {
@@ -265,17 +265,17 @@ func TestStudentService_GetStudentByID(t *testing.T) {
 	}{
 		{
 			name:        "found",
-			studentRepo: &mockStudentRepo{getByIDFn: func(id int) (*model.StudentDetails, error) { return student, nil }},
+			studentRepo: &mockStudentRepo{getStudentDetailsByIDFn: func(id int) (*model.StudentDetails, error) { return student, nil }},
 			wantStudent: student,
 		},
 		{
 			name:        "not found",
-			studentRepo: &mockStudentRepo{getByIDFn: func(id int) (*model.StudentDetails, error) { return nil, nil }},
+			studentRepo: &mockStudentRepo{getStudentDetailsByIDFn: func(id int) (*model.StudentDetails, error) { return nil, nil }},
 			wantErr:     ErrNotFound,
 		},
 		{
 			name:        "repo error",
-			studentRepo: &mockStudentRepo{getByIDFn: func(id int) (*model.StudentDetails, error) { return nil, dbErr }},
+			studentRepo: &mockStudentRepo{getStudentDetailsByIDFn: func(id int) (*model.StudentDetails, error) { return nil, dbErr }},
 			wantErr:     dbErr,
 		},
 	}

@@ -21,7 +21,7 @@ func NewStudentRepository(db *sqlx.DB) *StudentRepository {
 	return &StudentRepository{db: db}
 }
 
-func (r *StudentRepository) CreateStudent(newStudent *model.NewStudent) (*model.StudentDetails, error) {
+func (r *StudentRepository) Create(newStudent *model.NewStudent) (*model.StudentDetails, error) {
 	if newStudent == nil {
 		return nil, fmt.Errorf("newStudent cannot be nil")
 	}
@@ -79,8 +79,8 @@ func (r *StudentRepository) CreateStudent(newStudent *model.NewStudent) (*model.
 	return details, nil
 }
 
-// GetStudentByID retrieves a student with full details by user ID.
-func (r *StudentRepository) GetStudentByID(id int) (*model.StudentDetails, error) {
+// GetDetailsByID retrieves a student with full details by user ID.
+func (r *StudentRepository) GetDetailsByID(id int) (*model.StudentDetails, error) {
 	var s model.StudentDetails
 	var className *string
 	err := r.db.QueryRow(`
@@ -108,8 +108,8 @@ func (r *StudentRepository) GetStudentByID(id int) (*model.StudentDetails, error
 	return &s, nil
 }
 
-// StudentExists checks if a student with the given user ID exists.
-func (r *StudentRepository) StudentExists(id int) (bool, error) {
+// Exists checks if a student with the given user ID exists.
+func (r *StudentRepository) Exists(id int) (bool, error) {
 	var exists bool
 	err := r.db.Get(&exists, `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND role = $2)`, id, constant.RoleStudent)
 	if err != nil {
@@ -118,8 +118,8 @@ func (r *StudentRepository) StudentExists(id int) (bool, error) {
 	return exists, nil
 }
 
-// UpdateStudent updates user and user_students fields for the given student ID in a single transaction.
-func (r *StudentRepository) UpdateStudent(studentID int, update *model.UpdateStudent) error {
+// Update updates user and user_students fields for the given student ID in a single transaction.
+func (r *StudentRepository) Update(studentID int, update *model.UpdateStudent) error {
 	if update == nil {
 		return fmt.Errorf("update cannot be nil")
 	}
@@ -153,8 +153,8 @@ func (r *StudentRepository) UpdateStudent(studentID int, update *model.UpdateStu
 	return nil
 }
 
-// DeleteStudent removes the student user and associated user_students record.
-func (r *StudentRepository) DeleteStudent(studentID int) error {
+// Delete removes the student user and associated user_students record.
+func (r *StudentRepository) Delete(studentID int) error {
 	// Delete the user with role = 'student'; cascades to user_students automatically.
 	if _, err := r.db.Exec(`DELETE FROM users WHERE id = $1 AND role = $2`, studentID, constant.RoleStudent); err != nil {
 		return fmt.Errorf("failed to delete student: %w", err)
@@ -162,7 +162,7 @@ func (r *StudentRepository) DeleteStudent(studentID int) error {
 	return nil
 }
 
-var listStudentOrderByMap = map[string]string{
+var studentOrderByMap = map[string]string{
 	"id":         "u.id",
 	"name":       "u.name",
 	"class_id":   "s.class_id",
@@ -170,10 +170,10 @@ var listStudentOrderByMap = map[string]string{
 	"updated_at": "u.updated_at",
 }
 
-// ListStudents returns a paginated list of students with optional filters.
+// List returns a paginated list of students with optional filters.
 // Filters on name/email go into userFilters; filters on class_id/year go into studentFilters.
 // When studentFilters are provided, student information is joined.
-func (r *StudentRepository) ListStudents(params model.ListStudentsParams) ([]model.StudentDetails, int, error) {
+func (r *StudentRepository) List(params model.ListStudentsParams) ([]model.StudentDetails, int, error) {
 	var args []any
 	var whereClauses []string
 
@@ -200,7 +200,7 @@ func (r *StudentRepository) ListStudents(params model.ListStudentsParams) ([]mod
 	where := "WHERE " + strings.Join(whereClauses, " AND ")
 
 	for i := range params.OrderBy {
-		mField, ok := listStudentOrderByMap[params.OrderBy[i].Field]
+		mField, ok := studentOrderByMap[params.OrderBy[i].Field]
 		if !ok {
 			return nil, 0, fmt.Errorf("invalid order by field: %s", params.OrderBy[i].Field)
 		}

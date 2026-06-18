@@ -36,12 +36,12 @@ func (m *mockTeacherUserRepo) UsernameExists(username string) (bool, error) {
 }
 
 type mockTeacherRepo struct {
-	createFn        func(t *model.NewTeacher) (*model.TeacherDetails, error)
-	getByIDFn       func(id int) (*model.TeacherDetails, error)
-	teacherExistsFn func(id int) (bool, error)
-	updateFn        func(id int, u *model.UpdateTeacher) error
-	deleteFn        func(id int) error
-	listFn          func(params model.ListTeachersParams) ([]model.TeacherDetails, int, error)
+	createFn         func(t *model.NewTeacher) (*model.TeacherDetails, error)
+	getDetailsByIDFn func(id int) (*model.TeacherDetails, error)
+	teacherExistsFn  func(id int) (bool, error)
+	updateFn         func(id int, u *model.UpdateTeacher) error
+	deleteFn         func(id int) error
+	listFn           func(params model.ListTeachersParams) ([]model.TeacherDetails, int, error)
 }
 
 func (m *mockTeacherRepo) CreateTeacher(t *model.NewTeacher) (*model.TeacherDetails, error) {
@@ -50,9 +50,9 @@ func (m *mockTeacherRepo) CreateTeacher(t *model.NewTeacher) (*model.TeacherDeta
 	}
 	return nil, nil
 }
-func (m *mockTeacherRepo) GetTeacherByID(id int) (*model.TeacherDetails, error) {
-	if m.getByIDFn != nil {
-		return m.getByIDFn(id)
+func (m *mockTeacherRepo) GetTeacherDetailsByID(id int) (*model.TeacherDetails, error) {
+	if m.getDetailsByIDFn != nil {
+		return m.getDetailsByIDFn(id)
 	}
 	return nil, nil
 }
@@ -335,7 +335,7 @@ func TestTeacherService_GetTeacherByID(t *testing.T) {
 		{
 			name: "success",
 			id:   1445,
-			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int) (*model.TeacherDetails, error) {
+			teacherRepo: &mockTeacherRepo{getDetailsByIDFn: func(id int) (*model.TeacherDetails, error) {
 				return teacher, nil
 			}},
 			wantErr:     nil,
@@ -344,7 +344,7 @@ func TestTeacherService_GetTeacherByID(t *testing.T) {
 		{
 			name: "teacher not found",
 			id:   99,
-			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int) (*model.TeacherDetails, error) {
+			teacherRepo: &mockTeacherRepo{getDetailsByIDFn: func(id int) (*model.TeacherDetails, error) {
 				return nil, nil
 			}},
 			wantErr:     ErrNotFound,
@@ -353,7 +353,7 @@ func TestTeacherService_GetTeacherByID(t *testing.T) {
 		{
 			name: "db error",
 			id:   1,
-			teacherRepo: &mockTeacherRepo{getByIDFn: func(id int) (*model.TeacherDetails, error) {
+			teacherRepo: &mockTeacherRepo{getDetailsByIDFn: func(id int) (*model.TeacherDetails, error) {
 				return nil, dbErr
 			}},
 			wantErr:     dbErr,
@@ -385,7 +385,7 @@ func TestTeacherService_GetTeacherByID_MustPassCorrectID(t *testing.T) {
 		teacher := &model.TeacherDetails{ID: id, Name: "Jane Doe"}
 
 		svc := newTeacherServiceWithMocks()
-		svc.teacherRepo = &mockTeacherRepo{getByIDFn: func(id int) (*model.TeacherDetails, error) {
+		svc.teacherRepo = &mockTeacherRepo{getDetailsByIDFn: func(id int) (*model.TeacherDetails, error) {
 			capturedID = &id
 			return teacher, nil
 		}}

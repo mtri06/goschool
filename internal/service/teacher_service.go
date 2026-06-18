@@ -14,7 +14,7 @@ type teacherUserRepo interface {
 
 type teacherRepo interface {
 	CreateTeacher(newTeacher *model.NewTeacher) (*model.TeacherDetails, error)
-	GetTeacherByID(id int) (*model.TeacherDetails, error)
+	GetTeacherDetailsByID(id int) (*model.TeacherDetails, error)
 	TeacherExists(id int) (bool, error)
 	UpdateTeacher(teacherID int, update *model.UpdateTeacher) error
 	DeleteTeacher(teacherID int) error
@@ -93,7 +93,7 @@ func (s *TeacherService) CreateTeacher(newTeacher *model.NewTeacher) (*model.Tea
 }
 
 func (s *TeacherService) GetTeacherByID(teacherID int) (*model.TeacherDetails, error) {
-	teacher, err := s.teacherRepo.GetTeacherByID(teacherID)
+	teacher, err := s.teacherRepo.GetTeacherDetailsByID(teacherID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get teacher: %w", err)
 	}
@@ -103,7 +103,7 @@ func (s *TeacherService) GetTeacherByID(teacherID int) (*model.TeacherDetails, e
 	return teacher, nil
 }
 
-var listTeachersAllowedOrderBy = map[string]bool{
+var teacherAllowedOrderBy = map[string]bool{
 	"id":         true,
 	"name":       true,
 	"updated_at": true,
@@ -122,7 +122,7 @@ func (s *TeacherService) ListTeachers(params model.ListTeachersParams) ([]model.
 	}
 
 	for _, order := range params.OrderBy {
-		if !listTeachersAllowedOrderBy[order.Field] {
+		if !teacherAllowedOrderBy[order.Field] {
 			return nil, 0, NewError(fmt.Sprintf("invalid order by field: %s", order.Field), "invalid_order_by_field", ErrValidationFailed)
 		}
 	}

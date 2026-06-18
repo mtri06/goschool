@@ -14,16 +14,16 @@ type studentUserRepo interface {
 }
 
 type studentRepo interface {
-	CreateStudent(newStudent *model.NewStudent) (*model.StudentDetails, error)
-	GetStudentByID(id int) (*model.StudentDetails, error)
-	StudentExists(id int) (bool, error)
-	UpdateStudent(studentID int, update *model.UpdateStudent) error
-	DeleteStudent(studentID int) error
-	ListStudents(params model.ListStudentsParams) ([]model.StudentDetails, int, error)
+	Create(newStudent *model.NewStudent) (*model.StudentDetails, error)
+	GetDetailsByID(id int) (*model.StudentDetails, error)
+	Exists(id int) (bool, error)
+	Update(studentID int, update *model.UpdateStudent) error
+	Delete(studentID int) error
+	List(params model.ListStudentsParams) ([]model.StudentDetails, int, error)
 }
 
 type studentClassRepo interface {
-	ClassExists(id int) (bool, error)
+	Exists(id int) (bool, error)
 }
 
 type StudentService struct {
@@ -77,7 +77,7 @@ func (s *StudentService) CreateStudent(newStudent *model.NewStudent) (*model.Stu
 	newStudent.Password = hashedPassword
 
 	if newStudent.ClassID != nil {
-		exists, err := s.classRepo.ClassExists(*newStudent.ClassID)
+		exists, err := s.classRepo.Exists(*newStudent.ClassID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check if class exists: %w", err)
 		}
@@ -86,7 +86,7 @@ func (s *StudentService) CreateStudent(newStudent *model.NewStudent) (*model.Stu
 		}
 	}
 
-	details, err := s.studentRepo.CreateStudent(newStudent)
+	details, err := s.studentRepo.Create(newStudent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create student: %w", err)
 	}
@@ -94,7 +94,7 @@ func (s *StudentService) CreateStudent(newStudent *model.NewStudent) (*model.Stu
 }
 
 func (s *StudentService) GetStudentByID(studentID int) (*model.StudentDetails, error) {
-	student, err := s.studentRepo.GetStudentByID(studentID)
+	student, err := s.studentRepo.GetDetailsByID(studentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get student: %w", err)
 	}
@@ -104,7 +104,7 @@ func (s *StudentService) GetStudentByID(studentID int) (*model.StudentDetails, e
 	return student, nil
 }
 
-var listStudentsAllowedOrderBy = map[string]bool{
+var studentAllowedOrderBy = map[string]bool{
 	"id":         true,
 	"name":       true,
 	"updated_at": true,
@@ -120,13 +120,13 @@ func (s *StudentService) ListStudents(params model.ListStudentsParams) ([]model.
 	}
 
 	for _, order := range params.OrderBy {
-		if !listStudentsAllowedOrderBy[order.Field] {
+		if !studentAllowedOrderBy[order.Field] {
 			return nil, 0, NewError(fmt.Sprintf("invalid order by field: %s", order.Field), "invalid_order_by_field", ErrValidationFailed)
 		}
 	}
 	params.OrderBy = append(params.OrderBy, model.Order{Field: "id"})
 
-	return s.studentRepo.ListStudents(params)
+	return s.studentRepo.List(params)
 }
 
 func (s *StudentService) UpdateStudent(studentID int, update *model.UpdateStudent) error {
@@ -134,7 +134,7 @@ func (s *StudentService) UpdateStudent(studentID int, update *model.UpdateStuden
 		return NewError(err.Error(), "invalid_gender", ErrValidationFailed)
 	}
 
-	exists, err := s.studentRepo.StudentExists(studentID)
+	exists, err := s.studentRepo.Exists(studentID)
 	if err != nil {
 		return fmt.Errorf("failed to check if student exists: %w", err)
 	}
@@ -154,14 +154,14 @@ func (s *StudentService) UpdateStudent(studentID int, update *model.UpdateStuden
 		}
 	}
 
-	if err := s.studentRepo.UpdateStudent(studentID, update); err != nil {
+	if err := s.studentRepo.Update(studentID, update); err != nil {
 		return fmt.Errorf("failed to update student: %w", err)
 	}
 	return nil
 }
 
 func (s *StudentService) DeleteStudent(studentID int) error {
-	exists, err := s.studentRepo.StudentExists(studentID)
+	exists, err := s.studentRepo.Exists(studentID)
 	if err != nil {
 		return fmt.Errorf("failed to check if student exists: %w", err)
 	}
@@ -169,7 +169,7 @@ func (s *StudentService) DeleteStudent(studentID int) error {
 		return NewError("student not found", "student_not_found", ErrNotFound)
 	}
 
-	if err := s.studentRepo.DeleteStudent(studentID); err != nil {
+	if err := s.studentRepo.Delete(studentID); err != nil {
 		return fmt.Errorf("failed to delete student: %w", err)
 	}
 	return nil

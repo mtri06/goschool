@@ -60,8 +60,8 @@ func (r *TokenRepository) RevokeByBody(body string) error {
 	return nil
 }
 
-// CreateToken inserts a new token and returns the generated ID
-func (r *TokenRepository) CreateToken(token *model.Token) error {
+// Create inserts a new token and returns the generated ID
+func (r *TokenRepository) Create(token *model.Token) error {
 	if token == nil {
 		return fmt.Errorf("token cannot be nil")
 	}
