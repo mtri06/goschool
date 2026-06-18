@@ -9,7 +9,7 @@ import (
 type subjectRepo interface {
 	Create(newSubject *model.NewSubject) (*model.SubjectDetails, error)
 	ExistsByName(name string) (bool, error)
-	GetAllSubjects(params model.GetAllSubjectsParams) ([]model.SubjectDetails, error)
+	GetAll(params model.GetAllSubjectsParams) ([]model.SubjectDetails, error)
 }
 
 type SubjectService struct {
@@ -58,7 +58,7 @@ func (s *SubjectService) GetAllSubjects(params model.GetAllSubjectsParams) ([]mo
 	}
 	params.OrderBy = append(params.OrderBy, model.Order{Field: "id"})
 
-	subjects, err := s.subjectRepo.GetAllSubjects(params)
+	subjects, err := s.subjectRepo.GetAll(params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list subjects: %w", err)
 	}

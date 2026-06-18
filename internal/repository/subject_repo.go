@@ -57,8 +57,8 @@ func (r *SubjectRepository) Create(newSubject *model.NewSubject) (*model.Subject
 	return subject, nil
 }
 
-// GetAllSubjects returns all subjects with optional filtering and ordering
-func (r *SubjectRepository) GetAllSubjects(params model.GetAllSubjectsParams) ([]model.SubjectDetails, error) {
+// GetAll returns all subjects with optional filtering and ordering
+func (r *SubjectRepository) GetAll(params model.GetAllSubjectsParams) ([]model.SubjectDetails, error) {
 	query := "SELECT id, name, status, created_at, updated_at FROM subjects"
 
 	var args []any

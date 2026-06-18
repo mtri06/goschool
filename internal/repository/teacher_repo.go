@@ -21,8 +21,8 @@ func NewTeacherRepository(db *sqlx.DB) *TeacherRepository {
 	return &TeacherRepository{db: db}
 }
 
-// CreateTeacher inserts a user and a matching user_teacher record in a single transaction
-func (r *TeacherRepository) CreateTeacher(newTeacher *model.NewTeacher) (*model.TeacherDetails, error) {
+// Create inserts a user and a matching user_teacher record in a single transaction
+func (r *TeacherRepository) Create(newTeacher *model.NewTeacher) (*model.TeacherDetails, error) {
 	if newTeacher == nil {
 		return nil, fmt.Errorf("newTeacher cannot be nil")
 	}
@@ -82,8 +82,8 @@ var teacherOrderByMap = map[string]string{
 	"subjectId": "t.subject_id",
 }
 
-// ListTeachers returns a paginated list of teachers and the total count, with optional filters by name, email, and working status
-func (r *TeacherRepository) ListTeachers(params model.ListTeachersParams) ([]model.TeacherDetails, int, error) {
+// List returns a paginated list of teachers and the total count, with optional filters by name, email, and working status
+func (r *TeacherRepository) List(params model.ListTeachersParams) ([]model.TeacherDetails, int, error) {
 	var args []interface{}
 	var whereClauses []string
 	whereClauses = append(whereClauses, "u.role = $1")
@@ -186,8 +186,8 @@ func (r *TeacherRepository) ListTeachers(params model.ListTeachersParams) ([]mod
 	return teachers, total, nil
 }
 
-// GetTeacherDetailsByID retrieves a teacher with full details by user ID.
-func (r *TeacherRepository) GetTeacherDetailsByID(id int) (*model.TeacherDetails, error) {
+// GetDetailsByID retrieves a teacher with full details by user ID.
+func (r *TeacherRepository) GetDetailsByID(id int) (*model.TeacherDetails, error) {
 	var t model.TeacherDetails
 	var subjectName *string
 	err := r.db.QueryRow(`
@@ -215,8 +215,8 @@ func (r *TeacherRepository) GetTeacherDetailsByID(id int) (*model.TeacherDetails
 	return &t, nil
 }
 
-// TeacherExists checks if a teacher with the given user ID exists.
-func (r *TeacherRepository) TeacherExists(id int) (bool, error) {
+// Exists checks if a teacher with the given user ID exists.
+func (r *TeacherRepository) Exists(id int) (bool, error) {
 	var exists bool
 	err := r.db.Get(&exists, `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND role = 'teacher')`, id)
 	if err != nil {
@@ -225,8 +225,8 @@ func (r *TeacherRepository) TeacherExists(id int) (bool, error) {
 	return exists, nil
 }
 
-// UpdateTeacher updates user and user_teacher fields for the given teacher ID in a single transaction.
-func (r *TeacherRepository) UpdateTeacher(teacherID int, update *model.UpdateTeacher) error {
+// Update updates user and user_teacher fields for the given teacher ID in a single transaction.
+func (r *TeacherRepository) Update(teacherID int, update *model.UpdateTeacher) error {
 	if update == nil {
 		return fmt.Errorf("update cannot be nil")
 	}
@@ -260,8 +260,8 @@ func (r *TeacherRepository) UpdateTeacher(teacherID int, update *model.UpdateTea
 	return nil
 }
 
-// DeleteTeacher removes the teacher user and associated user_teacher record.
-func (r *TeacherRepository) DeleteTeacher(teacherID int) error {
+// Delete removes the teacher user and associated user_teacher record.
+func (r *TeacherRepository) Delete(teacherID int) error {
 	// Deleting the user with role = 'teacher', cascades to user_teachers automatically.
 	if _, err := r.db.Exec(`DELETE FROM users WHERE id = $1 AND role = $2`, teacherID, constant.RoleTeacher); err != nil {
 		return fmt.Errorf("failed to delete teacher: %w", err)

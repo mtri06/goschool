@@ -13,12 +13,12 @@ type teacherUserRepo interface {
 }
 
 type teacherRepo interface {
-	CreateTeacher(newTeacher *model.NewTeacher) (*model.TeacherDetails, error)
-	GetTeacherDetailsByID(id int) (*model.TeacherDetails, error)
-	TeacherExists(id int) (bool, error)
-	UpdateTeacher(teacherID int, update *model.UpdateTeacher) error
-	DeleteTeacher(teacherID int) error
-	ListTeachers(params model.ListTeachersParams) ([]model.TeacherDetails, int, error)
+	Create(newTeacher *model.NewTeacher) (*model.TeacherDetails, error)
+	GetDetailsByID(id int) (*model.TeacherDetails, error)
+	Exists(id int) (bool, error)
+	Update(teacherID int, update *model.UpdateTeacher) error
+	Delete(teacherID int) error
+	List(params model.ListTeachersParams) ([]model.TeacherDetails, int, error)
 }
 
 type teacherSubjectRepo interface {
@@ -85,7 +85,7 @@ func (s *TeacherService) CreateTeacher(newTeacher *model.NewTeacher) (*model.Tea
 		}
 	}
 
-	details, err := s.teacherRepo.CreateTeacher(newTeacher)
+	details, err := s.teacherRepo.Create(newTeacher)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create teacher: %w", err)
 	}
@@ -93,7 +93,7 @@ func (s *TeacherService) CreateTeacher(newTeacher *model.NewTeacher) (*model.Tea
 }
 
 func (s *TeacherService) GetTeacherByID(teacherID int) (*model.TeacherDetails, error) {
-	teacher, err := s.teacherRepo.GetTeacherDetailsByID(teacherID)
+	teacher, err := s.teacherRepo.GetDetailsByID(teacherID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get teacher: %w", err)
 	}
@@ -128,7 +128,7 @@ func (s *TeacherService) ListTeachers(params model.ListTeachersParams) ([]model.
 	}
 	params.OrderBy = append(params.OrderBy, model.Order{Field: "id"})
 
-	teachers, total, err := s.teacherRepo.ListTeachers(params)
+	teachers, total, err := s.teacherRepo.List(params)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list teachers: %w", err)
 	}
@@ -149,7 +149,7 @@ func (s *TeacherService) UpdateTeacher(teacherID int, update *model.UpdateTeache
 		return NewError(err.Error(), "invalid_working_status", ErrValidationFailed)
 	}
 
-	exists, err := s.teacherRepo.TeacherExists(teacherID)
+	exists, err := s.teacherRepo.Exists(teacherID)
 	if err != nil {
 		return fmt.Errorf("failed to check if teacher exists: %w", err)
 	}
@@ -177,14 +177,14 @@ func (s *TeacherService) UpdateTeacher(teacherID int, update *model.UpdateTeache
 		}
 	}
 
-	if err := s.teacherRepo.UpdateTeacher(teacherID, update); err != nil {
+	if err := s.teacherRepo.Update(teacherID, update); err != nil {
 		return fmt.Errorf("failed to update teacher: %w", err)
 	}
 	return nil
 }
 
 func (s *TeacherService) DeleteTeacher(teacherID int) error {
-	exists, err := s.teacherRepo.TeacherExists(teacherID)
+	exists, err := s.teacherRepo.Exists(teacherID)
 	if err != nil {
 		return fmt.Errorf("failed to check if teacher exists: %w", err)
 	}
@@ -192,7 +192,7 @@ func (s *TeacherService) DeleteTeacher(teacherID int) error {
 		return NewError("teacher not found", "teacher_not_found", ErrNotFound)
 	}
 
-	if err := s.teacherRepo.DeleteTeacher(teacherID); err != nil {
+	if err := s.teacherRepo.Delete(teacherID); err != nil {
 		return fmt.Errorf("failed to delete teacher: %w", err)
 	}
 	return nil

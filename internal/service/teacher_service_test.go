@@ -44,37 +44,37 @@ type mockTeacherRepo struct {
 	listFn           func(params model.ListTeachersParams) ([]model.TeacherDetails, int, error)
 }
 
-func (m *mockTeacherRepo) CreateTeacher(t *model.NewTeacher) (*model.TeacherDetails, error) {
+func (m *mockTeacherRepo) Create(t *model.NewTeacher) (*model.TeacherDetails, error) {
 	if m.createFn != nil {
 		return m.createFn(t)
 	}
 	return nil, nil
 }
-func (m *mockTeacherRepo) GetTeacherDetailsByID(id int) (*model.TeacherDetails, error) {
+func (m *mockTeacherRepo) GetDetailsByID(id int) (*model.TeacherDetails, error) {
 	if m.getDetailsByIDFn != nil {
 		return m.getDetailsByIDFn(id)
 	}
 	return nil, nil
 }
-func (m *mockTeacherRepo) TeacherExists(id int) (bool, error) {
+func (m *mockTeacherRepo) Exists(id int) (bool, error) {
 	if m.teacherExistsFn != nil {
 		return m.teacherExistsFn(id)
 	}
 	return false, nil
 }
-func (m *mockTeacherRepo) UpdateTeacher(id int, u *model.UpdateTeacher) error {
+func (m *mockTeacherRepo) Update(id int, u *model.UpdateTeacher) error {
 	if m.updateFn != nil {
 		return m.updateFn(id, u)
 	}
 	return nil
 }
-func (m *mockTeacherRepo) DeleteTeacher(id int) error {
+func (m *mockTeacherRepo) Delete(id int) error {
 	if m.deleteFn != nil {
 		return m.deleteFn(id)
 	}
 	return nil
 }
-func (m *mockTeacherRepo) ListTeachers(params model.ListTeachersParams) ([]model.TeacherDetails, int, error) {
+func (m *mockTeacherRepo) List(params model.ListTeachersParams) ([]model.TeacherDetails, int, error) {
 	if m.listFn != nil {
 		return m.listFn(params)
 	}
