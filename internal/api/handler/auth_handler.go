@@ -42,7 +42,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Name:     constant.CookieAccessToken,
 		Value:    tokens.AccessToken,
 		Path:     "/",
-		MaxAge:   int(env.Env.JWTAccessExpires.Seconds()), // Match access token cookies expiry
+		MaxAge:   int(env.Env.JWTRefreshExpires.Seconds()), // Match refresh token cookies expiry (not access token expiry)
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
@@ -120,7 +120,7 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 		Name:     constant.CookieAccessToken,
 		Value:    tokens.AccessToken,
 		Path:     "/",
-		MaxAge:   int(env.Env.JWTAccessExpires.Seconds()), // Match access token cookies expiry
+		MaxAge:   int(env.Env.JWTRefreshExpires.Seconds()), // Match refresh token cookies expiry (not access token expiry)
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
