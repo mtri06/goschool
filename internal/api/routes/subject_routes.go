@@ -13,6 +13,7 @@ func MountSubjectRoutes(router chi.Router, h *handler.SubjectHandler) {
 
 	r.With(mw.Auth).Get("/", h.GetAllSubjects)
 	r.With(mw.Auth, mw.RequireRole(constant.RoleAdmin)).Post("/", h.CreateSubject)
+	r.With(mw.Auth, mw.RequireRole(constant.RoleAdmin)).Patch("/{id}", h.UpdateSubject)
 
 	router.Mount("/subjects", r)
 }

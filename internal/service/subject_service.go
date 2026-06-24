@@ -6,10 +6,16 @@ import (
 	"goschool/pkg/model"
 )
 
+var allowedSubjectStatuses = map[string]bool{
+	"active":   true,
+	"inactive": true,
+}
+
 type subjectRepo interface {
 	Create(newSubject *model.NewSubject) (*model.SubjectDetails, error)
 	ExistsByName(name string) (bool, error)
 	GetAll(params model.GetAllSubjectsParams) ([]model.SubjectDetails, error)
+	Update(id int, update model.UpdateSubject) error
 }
 
 type SubjectService struct {
@@ -68,4 +74,27 @@ func (s *SubjectService) GetAllSubjects(params model.GetAllSubjectsParams) ([]mo
 	}
 
 	return subjects, nil
+}
+
+func (s *SubjectService) UpdateSubject(id int, update model.UpdateSubject) error {
+	if update.Name != nil {
+		exists, err := s.subjectRepo.ExistsByName(*update.Name)
+		if err != nil {
+			return fmt.Errorf("failed to check if subject name exists: %w", err)
+		}
+		if exists {
+			return NewError("subject name already exists", "subject_name_exists", ErrValidationFailed)
+		}
+	}
+
+	if update.Status != nil && !allowedSubjectStatuses[*update.Status] {
+		return NewError(fmt.Sprintf("invalid subject status: %s", *update.Status), "invalid_subject_status", ErrValidationFailed)
+	}
+
+	err := s.subjectRepo.Update(id, update)
+	if err != nil {
+		return fmt.Errorf("failed to update subject: %w", err)
+	}
+
+	return nil
 }

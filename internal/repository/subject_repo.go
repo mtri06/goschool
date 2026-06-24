@@ -2,6 +2,7 @@ package repository
 
 import (
 	"fmt"
+	"strings"
 
 	"goschool/pkg/constant"
 	"goschool/pkg/model"
@@ -77,4 +78,33 @@ func (r *SubjectRepository) GetAll(params model.GetAllSubjectsParams) ([]model.S
 	}
 
 	return subjects, nil
+}
+
+func (r *SubjectRepository) Update(id int, update model.UpdateSubject) error {
+	sets := []string{}
+	args := []any{}
+	argPos := 1
+
+	if update.Name != nil {
+		sets = append(sets, fmt.Sprintf("name = $%d", argPos))
+		args = append(args, *update.Name)
+		argPos++
+	}
+	if update.Status != nil {
+		sets = append(sets, fmt.Sprintf("status = $%d", argPos))
+		args = append(args, *update.Status)
+		argPos++
+	}
+
+	if len(sets) == 0 {
+		return nil // Nothing to update
+	}
+
+	query := `UPDATE subjects SET ` + strings.Join(sets, ", ") + `, updated_at = NOW() WHERE id = $` + fmt.Sprint(argPos)
+	args = append(args, id)
+	_, err := r.db.Exec(query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to update subject: %w", err)
+	}
+	return nil
 }

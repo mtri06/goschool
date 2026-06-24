@@ -12,6 +12,7 @@ import (
 type SubjectSvc interface {
 	CreateSubject(newSubject *model.NewSubject) (*model.SubjectDetails, error)
 	GetAllSubjects(params model.GetAllSubjectsParams) ([]model.SubjectDetails, error)
+	UpdateSubject(id int, update model.UpdateSubject) error
 }
 
 type SubjectHandler struct {
@@ -67,4 +68,26 @@ func (h *SubjectHandler) GetAllSubjects(w http.ResponseWriter, r *http.Request) 
 	render.JSON(w, r, map[string]any{
 		"subjects": subjects,
 	})
+}
+
+func (h *SubjectHandler) UpdateSubject(w http.ResponseWriter, r *http.Request) {
+	id, err := httpx.GetParamInt(r, "id")
+	if err != nil {
+		httpx.RenderError(w, r, h.errMap, err)
+		return
+	}
+
+	update, err := httpx.DecodeBody[model.UpdateSubject](r)
+	if err != nil {
+		httpx.RenderError(w, r, h.errMap, err)
+		return
+	}
+
+	err = h.subjectSvc.UpdateSubject(id, *update)
+	if err != nil {
+		httpx.RenderError(w, r, h.errMap, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

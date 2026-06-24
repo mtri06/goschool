@@ -23,3 +23,8 @@ type SubjectDetails struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
+
+type UpdateSubject struct {
+	Name   *string `json:"name,omitempty" db:"name" validate:"omitempty,min=1"`
+	Status *string `json:"status,omitempty" db:"status" validate:"omitempty,oneof=active inactive"`
+}
